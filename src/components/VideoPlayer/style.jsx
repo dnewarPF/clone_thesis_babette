@@ -6,18 +6,18 @@ export const Card = styled.div`
     background: #141414;
     border-radius: 18px;
     overflow: hidden;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: ${({$hovered}) => ($hovered ? "0 24px 48px rgba(0, 0, 0, 0.6)" : "0 14px 32px rgba(0, 0, 0, 0.32)")};
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
     border: ${({isSelected}) => (isSelected ? "2px solid rgba(229, 9, 20, 0.6)" : "2px solid transparent")};
-
-    &:hover {
-        transform: ${({isSelected}) => (isSelected ? "translateY(-2px)" : "translateY(-6px)")};
-        box-shadow: ${({isSelected}) =>
-            isSelected ? "0 12px 28px rgba(0, 0, 0, 0.45)" : "0 18px 40px rgba(0, 0, 0, 0.5)"};
-    }
+    transform: ${({$hovered}) => ($hovered ? "scale(1.12)" : "scale(1)")};
+    transform-origin: center;
+    position: relative;
+    z-index: ${({$hovered}) => ($hovered ? 20 : 1)};
+    will-change: transform;
 
     @media only screen and (max-width: 768px) {
         min-height: auto;
+        transform: ${({$hovered}) => ($hovered ? "scale(1.05)" : "scale(1)")};
     }
 `;
 

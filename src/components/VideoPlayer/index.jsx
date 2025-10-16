@@ -59,6 +59,7 @@ function VideoPlayer({
     const [playerObj, setPlayerObj] = useState({});
     const [sound, setSound] = useState(false);
     const [requestedId, setRequestedId] = useState(null);
+    const [isHovering, setIsHovering] = useState(false);
 
     const imagePath = useMemo(() => {
         if (!movie) {
@@ -83,10 +84,12 @@ function VideoPlayer({
         setSound(false);
         setIsVideoEnding(false);
         setRequestedId(null);
+        setIsHovering(false);
         onLeave?.();
     };
 
     const handleVideo = () => {
+        setIsHovering(true);
         onShow?.(movie?.id);
         if (!showPreview || !movie) {
             return;
@@ -151,10 +154,15 @@ function VideoPlayer({
         <Card
             isLargeRow={isLargeRow}
             isSelected={isSelected}
+            $hovered={isHovering}
             key={`${movie?.id ?? index}-card`}
             onMouseEnter={handleVideo}
             onMouseLeave={resetStateVideo}
             onTouchStart={handleVideo}
+            onTouchEnd={resetStateVideo}
+            onTouchCancel={resetStateVideo}
+            onFocus={() => setIsHovering(true)}
+            onBlur={resetStateVideo}
         >
             <MediaSurface>
                 {shouldRenderVideo ? (
@@ -230,7 +238,6 @@ function VideoPlayer({
                 id={movie?.id}
                 name={movie?.name}
                 title={movie?.title}
-                overview={movie?.overview}
                 genre_ids={movie?.genre_ids ?? []}
                 vote_average={movie?.vote_average}
                 isLargeRow={isLargeRow}
@@ -238,6 +245,7 @@ function VideoPlayer({
                 adjective={adjective}
                 onConfirm={() => onConfirm?.(movie)}
                 isSelected={isSelected}
+                showDetails={isHovering}
             />
         </Card>
     );

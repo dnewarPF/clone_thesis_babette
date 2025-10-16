@@ -13,25 +13,25 @@ const Page = styled.main`
 
 const Wrapper = styled.section`
     width: 100%;
-    max-width: 920px;
-    background: rgba(16, 16, 16, 0.92);
-    border-radius: 22px;
-    padding: clamp(2rem, 4vw, 3.5rem);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    max-width: 780px;
+    background: rgba(18, 18, 18, 0.9);
+    border-radius: 20px;
+    padding: clamp(1.75rem, 4vw, 3rem);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
     display: grid;
-    gap: 1.75rem;
+    gap: 1.3rem;
 `;
 
 const Title = styled.h1`
     margin: 0;
-    font-size: clamp(2rem, 3.5vw, 2.8rem);
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
     font-weight: 700;
 `;
 
 const Paragraph = styled.p`
     margin: 0;
-    font-size: 1.05rem;
-    line-height: 1.65rem;
+    font-size: 0.98rem;
+    line-height: 1.55rem;
     color: #dddddd;
 `;
 
@@ -42,31 +42,31 @@ const Emphasis = styled.span`
 
 const Steps = styled.ol`
     margin: 0;
-    padding-left: 1.4rem;
+    padding-left: 1.2rem;
     display: grid;
-    gap: 1rem;
-    font-size: 1rem;
+    gap: 0.75rem;
+    font-size: 0.95rem;
     color: #cfcfcf;
-    line-height: 1.55rem;
+    line-height: 1.45rem;
 `;
 
 const Note = styled.div`
-    padding: 1.1rem 1.2rem;
-    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
     background: rgba(229, 9, 20, 0.12);
-    border: 1px solid rgba(229, 9, 20, 0.3);
+    border: 1px solid rgba(229, 9, 20, 0.28);
     color: #ffecec;
-    font-size: 0.95rem;
-    line-height: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.4rem;
 `;
 
 const CTA = styled.button`
     justify-self: flex-start;
-    padding: 0.85rem 2.4rem;
+    padding: 0.7rem 2rem;
     border-radius: 999px;
     border: none;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     cursor: pointer;
     background: #e50914;
@@ -74,13 +74,13 @@ const CTA = styled.button`
     transition: transform 0.2s ease, background 0.2s ease;
 
     &:hover {
-        transform: translateY(-3px);
+        transform: translateY(-1px);
         background: #f6121d;
     }
 
     &:focus-visible {
-        outline: 3px solid #ffffff;
-        outline-offset: 4px;
+        outline: 2px solid #ffffff;
+        outline-offset: 3px;
     }
 `;
 

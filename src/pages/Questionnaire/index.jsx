@@ -225,6 +225,7 @@ function Questionnaire() {
     const navigate = useNavigate();
     const selections = location.state?.selections ?? [];
     const sessionId = location.state?.sessionId ?? null;
+    const participantPid = location.state?.pid ?? null;
 
     const sortedSelections = useMemo(
         () =>
@@ -325,6 +326,14 @@ function Questionnaire() {
             }
 
             setSubmitSuccess(true);
+            navigate("/completion", {
+                replace: true,
+                state: {
+                    pid: participantPid ?? null,
+                    roundsCompleted: sortedSelections.length || null,
+                    totalDecisionTimeSeconds
+                }
+            });
         } catch (err) {
             console.error("Failed to save questionnaire responses", err);
             setSubmitError("We could not save your answers. Please try again.");

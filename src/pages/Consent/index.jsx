@@ -100,11 +100,11 @@ function Consent() {
                     <li><Highlight>No personal data is stored.</Highlight></li>
                 </ConsentList>
                 <Intro>
-                    By agreeing you proceed to the task instructions. If you are unsure, you can return to the start
-                    screen.
+                    By agreeing you proceed to a short demographics questionnaire. If you are unsure, you can return to
+                    the start screen.
                 </Intro>
                 <ButtonRow>
-                    <Button onClick={() => navigate("/instructions")}>I agree</Button>
+                    <Button onClick={() => navigate("/demographics")}>I agree</Button>
                     <Button secondary onClick={() => navigate("/")}>I decline</Button>
                 </ButtonRow>
             </Card>

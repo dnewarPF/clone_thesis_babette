@@ -6,12 +6,11 @@ import React from "react";
 const PlayerContainer = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
     background: rgba(15, 15, 15, 0.85);
-    padding: ${({isLargeRow}) => (isLargeRow ? "0.85rem 1.1rem 0" : "0.65rem 0.9rem 0")};
+    padding: 0.55rem 0.8rem 0.6rem;
     border-radius: 0 0 18px 18px;
     backdrop-filter: blur(6px);
-    min-height: ${({isLargeRow}) => (isLargeRow ? "114px" : "102px")};
 `;
 
 const TitleRow = styled.div`
@@ -45,6 +44,10 @@ const MetaRow = styled.div`
     gap: 0.7rem;
     flex-wrap: wrap;
     font-size: 0.82rem;
+    opacity: ${({$visible}) => ($visible ? 1 : 0)};
+    transform: ${({$visible}) => ($visible ? "translateY(0)" : "translateY(-6px)")};
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
 `;
 
 const Rating = styled.span`
@@ -54,15 +57,6 @@ const Rating = styled.span`
 
 const Genres = styled.span`
     color: #d0d0d0;
-`;
-
-const Description = styled.p`
-    margin: 0;
-    font-size: 0.78rem;
-    line-height: 1.15rem;
-    max-height: 2.1rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
 `;
 
 const ConfirmButton = styled.button`
@@ -76,8 +70,11 @@ const ConfirmButton = styled.button`
     background: #e50914;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
     margin-bottom: 0;
+    opacity: ${({$visible}) => ($visible ? 1 : 0)};
+    pointer-events: ${({$visible}) => ($visible ? "auto" : "none")};
+    transform: ${({$visible}) => ($visible ? "translateY(0)" : "translateY(10px)")};
 
     &:hover {
         background: #f6121d;
@@ -112,44 +109,37 @@ const SelectedNotice = styled.span`
     margin-bottom: 0;
 `;
 
-const truncate = (value, length) => {
-    if (!value) {
-        return "";
-    }
-    return value.length > length ? `${value.slice(0, length - 1)}...` : value;
-};
-
 function PlayerMenu({
     id,
     name,
     title,
-    overview,
     genre_ids: genreIds,
     vote_average: voteAverage,
     isLargeRow,
     showRatings,
     adjective,
     onConfirm,
-    isSelected
+    isSelected,
+    showDetails
 }) {
     const genres = genreIds ? getGenres(genreIds)?.filter(Boolean) : [];
     const rating = Math.round((voteAverage ?? 0) * 10);
+    const detailsVisible = Boolean(showDetails);
 
     return (
         <PlayerContainer isLargeRow={isLargeRow} data-movie-id={id}>
             <TitleRow>
                 <Title isLargeRow={isLargeRow}>{title || name}</Title>
-                {adjective ? <AdjectiveBadge>{adjective}</AdjectiveBadge> : null}
+                {detailsVisible && adjective ? <AdjectiveBadge>{adjective}</AdjectiveBadge> : null}
             </TitleRow>
-            <MetaRow>
+            <MetaRow $visible={detailsVisible}>
                 {showRatings ? <Rating>{rating}% score</Rating> : null}
                 {genres?.length ? <Genres>{genres.slice(0, 2).join(" · ")}</Genres> : null}
             </MetaRow>
-            <Description>{truncate(overview, isLargeRow ? 160 : 120)}</Description>
             {isSelected ? (
                 <SelectedNotice>Selection made - use the button below to continue</SelectedNotice>
             ) : (
-                <ConfirmButton type="button" onClick={() => onConfirm?.()}>
+                <ConfirmButton type="button" onClick={() => onConfirm?.()} $visible={detailsVisible}>
                     Watch now
                 </ConfirmButton>
             )}
@@ -161,14 +151,14 @@ PlayerMenu.propTypes = {
     id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     name: PropTypes.string,
     title: PropTypes.string,
-    overview: PropTypes.string,
     genre_ids: PropTypes.arrayOf(PropTypes.number),
     vote_average: PropTypes.number,
     isLargeRow: PropTypes.bool,
     showRatings: PropTypes.bool,
     adjective: PropTypes.string,
     onConfirm: PropTypes.func,
-    isSelected: PropTypes.bool
+    isSelected: PropTypes.bool,
+    showDetails: PropTypes.bool
 };
 
 PlayerMenu.defaultProps = {
@@ -176,7 +166,8 @@ PlayerMenu.defaultProps = {
     showRatings: false,
     adjective: undefined,
     onConfirm: undefined,
-    isSelected: false
+    isSelected: false,
+    showDetails: false
 };
 
 export default PlayerMenu;

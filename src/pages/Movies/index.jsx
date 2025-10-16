@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {Loader} from "../../utils/style/Atoms";
 import {useExperimentRounds} from "../../utils/hooks/useExperimentRounds";
 import ExperimentRound from "../../components/ExperimentRound";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import {supabase} from "../../utils/supabaseClient";
 
 const Page = styled.main`
@@ -227,6 +227,22 @@ const roundInfoOptions = [
 function Movies() {
     const {isLoading, rounds, error} = useExperimentRounds();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [participantContext, setParticipantContext] = useState(() => {
+        let storedPid = location.state?.pid ?? null;
+        let storedDemographicsId = location.state?.demographicsId ?? null;
+
+        if (typeof window !== "undefined") {
+            storedPid = storedPid ?? sessionStorage.getItem("participantPid");
+            storedDemographicsId =
+                storedDemographicsId ?? sessionStorage.getItem("demographicsId");
+        }
+
+        return {
+            pid: storedPid,
+            demographicsId: storedDemographicsId
+        };
+    });
     const [roundIndex, setRoundIndex] = useState(0);
     const [activeMovieId, setActiveMovieId] = useState(null);
     const [roundStart, setRoundStart] = useState(() => Date.now());
@@ -237,13 +253,33 @@ function Movies() {
     const [roundFeedback, setRoundFeedback] = useState({});
     const [roundFeedbackSaved, setRoundFeedbackSaved] = useState({});
     const [roundFeedbackError, setRoundFeedbackError] = useState(null);
+    const [isFeedbackStep, setIsFeedbackStep] = useState(false);
 
     const currentRound = rounds[roundIndex] ?? null;
+
+    useEffect(() => {
+        const statePid = location.state?.pid ?? null;
+        if (statePid && statePid !== participantContext.pid) {
+            setParticipantContext((prev) => ({...prev, pid: statePid}));
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem("participantPid", statePid);
+            }
+        }
+
+        const stateDemographicsId = location.state?.demographicsId ?? null;
+        if (stateDemographicsId && stateDemographicsId !== participantContext.demographicsId) {
+            setParticipantContext((prev) => ({...prev, demographicsId: stateDemographicsId}));
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem("demographicsId", String(stateDemographicsId));
+            }
+        }
+    }, [location.state, participantContext.pid, participantContext.demographicsId]);
 
     useEffect(() => {
         setRoundStart(Date.now());
         setActiveMovieId(null);
         setRoundFeedbackError(null);
+        setIsFeedbackStep(false);
     }, [roundIndex]);
 
     const currentSelection = useMemo(
@@ -297,6 +333,12 @@ function Movies() {
         }
         setRoundFeedbackError(null);
         setPersistError(null);
+
+        if (isFeedbackStep) {
+            setIsFeedbackStep(false);
+            return;
+        }
+
         setRoundIndex((prev) => Math.max(prev - 1, 0));
     };
 
@@ -312,8 +354,25 @@ function Movies() {
             keywords_visible: Boolean(round.config?.useAdjectives)
         }));
 
+        let effectivePid = participantContext.pid;
+
+        if (!effectivePid) {
+            effectivePid =
+                crypto.randomUUID?.() ??
+                `participant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+            setParticipantContext((prev) => ({
+                ...prev,
+                pid: effectivePid
+            }));
+
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem("participantPid", effectivePid);
+            }
+        }
+
         const participantPayload = {
-            pid: crypto.randomUUID?.() ?? `participant-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            pid: effectivePid,
             user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
             consent: true
         };
@@ -466,6 +525,16 @@ function Movies() {
     };
 
     const goToNext = async () => {
+        if (!isFeedbackStep) {
+            if (!currentSelection) {
+                setRoundFeedbackError("Select a movie with 'Watch now' before continuing.");
+                return;
+            }
+            setRoundFeedbackError(null);
+            setIsFeedbackStep(true);
+            return;
+        }
+
         if (!isCurrentFeedbackComplete || !currentSelection) {
             setRoundFeedbackError("Please answer the round feedback questions before continuing.");
             return;
@@ -482,7 +551,13 @@ function Movies() {
                 await persistChoices(session.id, selections);
                 setPersistError(null);
                 setIsPersisting(false);
-                navigate("/questionnaire", {state: {selections, sessionId: session.id}});
+                navigate("/questionnaire", {
+                    state: {
+                        selections,
+                        sessionId: session.id,
+                        pid: participantContext.pid ?? null
+                    }
+                });
                 return;
             }
 
@@ -498,15 +573,38 @@ function Movies() {
 
     const hasSelectionForCurrentRound = Boolean(currentSelection);
     const isFinalRound = rounds.length > 0 && roundIndex >= rounds.length - 1;
-    const primaryLabel = isFinalRound ? "Go to questionnaire" : "Next round";
+    const primaryLabel = isFeedbackStep
+        ? isFinalRound
+            ? "Go to questionnaire"
+            : "Next round"
+        : "Continue to feedback";
+    const secondaryLabel = isFeedbackStep ? "Back to round" : "Previous round";
+    const footerMessage = (() => {
+        if (isPersisting) {
+            return "Saving your selections...";
+        }
+        if (!hasSelectionForCurrentRound) {
+            return "Select a movie with the 'Watch now' button to continue.";
+        }
+        if (!isFeedbackStep) {
+            return `Selected: ${currentSelection.title}. Continue to the round feedback.`;
+        }
+        if (!isCurrentFeedbackComplete) {
+            return "Please complete the round feedback to continue.";
+        }
+        return isFinalRound
+            ? `Final round feedback complete for ${currentSelection.title}.`
+            : `Round feedback saved for ${currentSelection.title}.`;
+    })();
 
     return (
         <Page>
             <Header>
                 <RoundTitle>Experiment round {roundIndex + 1} of {rounds.length || 8}</RoundTitle>
                 <RoundSummary>
-                    Pick 1 movie per round. Only the "Watch now" button confirms your selection. Every round contains
-                    unique movies (6 categories x 10 movies) and a different combination of variables.
+                    {isFeedbackStep
+                        ? "Answer the short questionnaire about this choice before continuing to the next round."
+                        : "Pick 1 movie per round. Only the 'Watch now' button confirms your selection. Every round contains unique movies (6 categories x 10 movies) and a different combination of variables."}
                 </RoundSummary>
             </Header>
 
@@ -514,7 +612,7 @@ function Movies() {
                 <LoaderWrapper data-testid="loader">
                     <Loader/>
                 </LoaderWrapper>
-            ) : (
+            ) : !isFeedbackStep ? (
                 <ExperimentRound
                     key={currentRound.id}
                     round={currentRound}
@@ -523,16 +621,16 @@ function Movies() {
                     onConfirmSelection={handleSelection}
                     selectedMovieId={currentSelection?.movieId ?? null}
                 />
-            )}
+            ) : null}
 
-            {currentSelection ? (
+            {currentSelection && !isFeedbackStep ? (
                 <SelectionNotice>
                     You selected <strong>{currentSelection.title}</strong>. Click <strong>{primaryLabel}</strong> to
                     continue.
                 </SelectionNotice>
             ) : null}
 
-            {currentSelection ? (
+            {currentSelection && isFeedbackStep ? (
                 <FeedbackCard>
                     <FeedbackTitle>Round feedback</FeedbackTitle>
                     <FeedbackGroup>
@@ -611,25 +709,22 @@ function Movies() {
             {persistError ? <PersistErrorNotice role="alert">{persistError}</PersistErrorNotice> : null}
 
             <FooterBar>
-                <FooterMessage>
-                    {isPersisting
-                        ? "Saving your selections..."
-                        : currentSelection
-                        ? isCurrentFeedbackComplete
-                            ? isFinalRound
-                                ? `Final round completed: ${currentSelection.title}`
-                                : `Selected: ${currentSelection.title}`
-                            : "Please complete the round feedback to continue."
-                        : "Select a movie with the 'Watch now' button to continue."}
-                </FooterMessage>
+                <FooterMessage>{footerMessage}</FooterMessage>
                 <FooterActions>
-                    <ControlButton onClick={goToPrevious} disabled={roundIndex === 0 || isPersisting}>
-                        Previous round
+                    <ControlButton
+                        onClick={goToPrevious}
+                        disabled={(!isFeedbackStep && roundIndex === 0) || isPersisting}
+                    >
+                        {secondaryLabel}
                     </ControlButton>
                     <ControlButton
                         primary
                         onClick={goToNext}
-                        disabled={!hasSelectionForCurrentRound || isPersisting || !isCurrentFeedbackComplete}
+                        disabled={
+                            isPersisting ||
+                            (!isFeedbackStep && !hasSelectionForCurrentRound) ||
+                            (isFeedbackStep && (!isCurrentFeedbackComplete || !hasSelectionForCurrentRound))
+                        }
                     >
                         {primaryLabel}
                     </ControlButton>
