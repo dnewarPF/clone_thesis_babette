@@ -42,6 +42,7 @@ function VideoPlayer({
     onLeave,
     showPreview,
     showRatings,
+    showKeywords,
     adjective,
     onConfirm,
     isSelected
@@ -242,6 +243,7 @@ function VideoPlayer({
                 vote_average={movie?.vote_average}
                 isLargeRow={isLargeRow}
                 showRatings={showRatings}
+                showKeywords={showKeywords}
                 adjective={adjective}
                 onConfirm={() => onConfirm?.(movie)}
                 isSelected={isSelected}

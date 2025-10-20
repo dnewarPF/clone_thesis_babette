@@ -44,6 +44,56 @@ export function useExperimentRounds() {
             let adjectiveCursor = 0;
 
             try {
+                const API_URL = process.env.REACT_APP_API_URL;
+                const API_KEY = process.env.REACT_APP_API_KEY;
+
+                async function fetchKeywords(movieId) {
+                    if (!API_URL || !API_KEY || !movieId) return [];
+                    // Try movie keywords first, then TV
+                    try {
+                        const res = await fetch(`${API_URL}/movie/${movieId}/keywords?api_key=${API_KEY}`);
+                        if (res.ok) {
+                            const json = await res.json();
+                            const list = Array.isArray(json?.keywords) ? json.keywords : [];
+                            const names = list.map((k) => k?.name).filter(Boolean);
+                            if (names.length) return names;
+                        }
+                    } catch (_) {}
+                    try {
+                        const resTv = await fetch(`${API_URL}/tv/${movieId}/keywords?api_key=${API_KEY}`);
+                        if (resTv.ok) {
+                            const jsonTv = await resTv.json();
+                            const listTv = Array.isArray(jsonTv?.results) ? jsonTv.results : [];
+                            return listTv.map((k) => k?.name).filter(Boolean);
+                        }
+                    } catch (_) {}
+                    return [];
+                }
+
+                function containsUnsafeKeyword(names) {
+                    if (!Array.isArray(names) || !names.length) return false;
+                    const unsafe = [
+                        "softcore",
+                        "soft core",
+                        "hardcore",
+                        "hard core",
+                        "lesbian",
+                        "gay",
+                        "sexy",
+                        "erotic",
+                        "erotica",
+                        "adult",
+                        "porn",
+                        "xxx",
+                        "nudity",
+                        "nude",
+                        "sexual",
+                        "sex"
+                    ];
+                    const lowered = names.map((n) => String(n).toLowerCase());
+                    return lowered.some((n) => unsafe.some((u) => n.includes(u)));
+                }
+
                 for (let roundIndex = 0; roundIndex < ROUNDS_COUNT; roundIndex += 1) {
                     const condition = EXPERIMENT_CONDITIONS[roundIndex];
                     if (!condition) {
@@ -68,7 +118,44 @@ export function useExperimentRounds() {
                                 if (!sanitizeMovie(candidate)) {
                                     continue;
                                 }
+                                if (category.requiredGenreId) {
+                                    const candidateGenres = Array.isArray(candidate.genre_ids)
+                                        ? candidate.genre_ids
+                                        : [];
+                                    if (!candidateGenres.includes(category.requiredGenreId)) {
+                                        continue;
+                                    }
+                                }
+                                // Filter out adult / erotic content early
+                                const titleLc = (candidate.title || candidate.name || "").toLowerCase();
+                                const overviewLc = (candidate.overview || "").toLowerCase();
+                                const unsafeTerms = [
+                                    "erotic",
+                                    "sex",
+                                    "sexual",
+                                    "nudity",
+                                    "nude",
+                                    "porn",
+                                    "xxx",
+                                    "adult"
+                                ];
+                                if (
+                                    candidate.adult ||
+                                    unsafeTerms.some(t => titleLc.includes(t) || overviewLc.includes(t))
+                                ) {
+                                    continue;
+                                }
                                 if (globalUsedIds.has(candidate.id)) {
+                                    continue;
+                                }
+
+                                // Fetch keywords once to both validate presence (when needed)
+                                // and filter out unsafe content by trefwoorden
+                                const keywordNames = await fetchKeywords(candidate.id);
+                                if (containsUnsafeKeyword(keywordNames)) {
+                                    continue;
+                                }
+                                if (condition.useAdjectives && keywordNames.length === 0) {
                                     continue;
                                 }
 

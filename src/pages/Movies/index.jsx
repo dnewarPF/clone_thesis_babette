@@ -217,11 +217,13 @@ const roundLikertScale = [
     {value: "5", label: "5"}
 ];
 
-const roundInfoOptions = [
-    {value: "preview", label: "Video preview"},
+const ALL_INFO_OPTIONS = [
+    {value: "title", label: "Title"},
+    {value: "image", label: "Teaser image"},
+    {value: "genre", label: "Genre"},
     {value: "ratings", label: "Ratings"},
     {value: "adjectives", label: "Keywords"},
-    {value: "other", label: "Other"}
+    {value: "preview", label: "Video preview"}
 ];
 
 function Movies() {
@@ -256,6 +258,20 @@ function Movies() {
     const [isFeedbackStep, setIsFeedbackStep] = useState(false);
 
     const currentRound = rounds[roundIndex] ?? null;
+
+    const availableInfoOptions = useMemo(() => {
+        const config = currentRound?.config ?? {};
+        const result = [];
+        // Always available base features
+        result.push("title");
+        result.push("image");
+        result.push("genre");
+        // Conditional features per scenario
+        if (config.showRatings) result.push("ratings");
+        if (config.useAdjectives) result.push("adjectives");
+        if (config.usePreview) result.push("preview");
+        return result;
+    }, [currentRound?.config]);
 
     useEffect(() => {
         const statePid = location.state?.pid ?? null;
@@ -316,7 +332,7 @@ function Movies() {
             [roundIndex]: prev[roundIndex] ?? {
                 confidence: "",
                 infoSatisfaction: "",
-                helpfulElement: "",
+                helpfulRanking: [],
                 notes: ""
             }
         }));
@@ -327,20 +343,7 @@ function Movies() {
         setRoundFeedbackError(null);
     };
 
-    const goToPrevious = () => {
-        if (isPersisting) {
-            return;
-        }
-        setRoundFeedbackError(null);
-        setPersistError(null);
-
-        if (isFeedbackStep) {
-            setIsFeedbackStep(false);
-            return;
-        }
-
-        setRoundIndex((prev) => Math.max(prev - 1, 0));
-    };
+    // Back navigation removed: users cannot return to previous rounds
 
     const ensureSession = async () => {
         if (sessionRecord) {
@@ -445,7 +448,7 @@ function Movies() {
         const payload = {
             confidence: Number(feedback.confidence),
             infoSatisfaction: Number(feedback.infoSatisfaction),
-            helpfulElement: feedback.helpfulElement,
+            helpfulRanking: Array.isArray(feedback.helpfulRanking) ? feedback.helpfulRanking : [],
             notes: feedback.notes?.trim() || null,
             movieId: selection?.movieId ?? null,
             movieTitle: selection?.title ?? null
@@ -474,14 +477,16 @@ function Movies() {
     const currentRoundFeedback = roundFeedback[roundIndex] ?? {
         confidence: "",
         infoSatisfaction: "",
-        helpfulElement: "",
+        helpfulRanking: [],
         notes: ""
     };
 
     const isCurrentFeedbackComplete =
         Boolean(currentRoundFeedback.confidence) &&
         Boolean(currentRoundFeedback.infoSatisfaction) &&
-        Boolean(currentRoundFeedback.helpfulElement);
+        Array.isArray(currentRoundFeedback.helpfulRanking) &&
+        currentRoundFeedback.helpfulRanking.length === availableInfoOptions.length &&
+        Boolean(currentRoundFeedback.notes && currentRoundFeedback.notes.trim());
 
     const handleFeedbackRadioChange = (field) => (event) => {
         const value = event.target.value;
@@ -491,7 +496,7 @@ function Movies() {
                 ...(prev[roundIndex] ?? {
                     confidence: "",
                     infoSatisfaction: "",
-                    helpfulElement: "",
+                    helpfulRanking: [],
                     notes: ""
                 }),
                 [field]: value
@@ -512,7 +517,7 @@ function Movies() {
                 ...(prev[roundIndex] ?? {
                     confidence: "",
                     infoSatisfaction: "",
-                    helpfulElement: "",
+                    helpfulRanking: [],
                     notes: ""
                 }),
                 notes: value
@@ -578,7 +583,6 @@ function Movies() {
             ? "Go to questionnaire"
             : "Next round"
         : "Continue to feedback";
-    const secondaryLabel = isFeedbackStep ? "Back to round" : "Previous round";
     const footerMessage = (() => {
         if (isPersisting) {
             return "Saving your selections...";
@@ -604,7 +608,7 @@ function Movies() {
                 <RoundSummary>
                     {isFeedbackStep
                         ? "Answer the short questionnaire about this choice before continuing to the next round."
-                        : "Pick 1 movie per round. Only the 'Watch now' button confirms your selection. Every round contains unique movies (6 categories x 10 movies) and a different combination of variables."}
+                        : "Pick 1 movie per round. Only the 'Watch now' button confirms your selection. Every round contains unique movies (4 categories x 15 movies) and a different combination of variables."}
                 </RoundSummary>
             </Header>
 
@@ -675,26 +679,81 @@ function Movies() {
                     </FeedbackGroup>
                     <FeedbackGroup>
                         <FeedbackLabel>
-                            Which element influenced you the most? <Required>*</Required>
+                            Rank the descriptive features by importance (drag to reorder). <Required>*</Required>
                         </FeedbackLabel>
-                        <FeedbackOptions>
-                            {roundInfoOptions.map((option) => (
-                                <FeedbackOption key={`helpful-${option.value}`}>
-                                    <input
-                                        type="radio"
-                                        name={`helpful-${roundIndex}`}
-                                        value={option.value}
-                                        checked={currentRoundFeedback.helpfulElement === option.value}
-                                        onChange={handleFeedbackRadioChange("helpfulElement")}
-                                        disabled={isPersisting}
-                                    />
-                                    <span>{option.label}</span>
-                                </FeedbackOption>
-                            ))}
-                        </FeedbackOptions>
+                        <div style={{display: "grid", gap: "0.5rem"}}>
+                            {(Array.isArray(currentRoundFeedback.helpfulRanking) && currentRoundFeedback.helpfulRanking.length === availableInfoOptions.length
+                                ? currentRoundFeedback.helpfulRanking
+                                : availableInfoOptions
+                            ).map((val, idx, arr) => {
+                                const option = ALL_INFO_OPTIONS.find((o) => o.value === val);
+                                const handleDragStart = (e) => {
+                                    e.dataTransfer.effectAllowed = "move";
+                                    e.dataTransfer.setData("text/plain", String(idx));
+                                };
+                                const handleDragOver = (e) => {
+                                    e.preventDefault();
+                                    e.dataTransfer.dropEffect = "move";
+                                };
+                                const handleDrop = (e) => {
+                                    e.preventDefault();
+                                    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+                                    const toIndex = idx;
+                                    if (Number.isNaN(fromIndex) || fromIndex === toIndex) return;
+                                    const next = [...arr];
+                                    const [moved] = next.splice(fromIndex, 1);
+                                    next.splice(toIndex, 0, moved);
+                                    setRoundFeedback((prev) => ({
+                                        ...prev,
+                                        [roundIndex]: {
+                                            ...(prev[roundIndex] ?? {
+                                                confidence: "",
+                                                infoSatisfaction: "",
+                                                helpfulRanking: [],
+                                                notes: ""
+                                            }),
+                                            helpfulRanking: next
+                                        }
+                                    }));
+                                    setRoundFeedbackSaved((prev) => ({...prev, [roundIndex]: false}));
+                                    setRoundFeedbackError(null);
+                                };
+                                return (
+                                    <div
+                                        key={`rank-${val}`}
+                                        draggable={!isPersisting}
+                                        onDragStart={handleDragStart}
+                                        onDragOver={handleDragOver}
+                                        onDrop={handleDrop}
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.6rem",
+                                            padding: "0.6rem 0.8rem",
+                                            borderRadius: 10,
+                                            background: "rgba(255,255,255,0.08)",
+                                            cursor: isPersisting ? "not-allowed" : "grab"
+                                        }}
+                                        aria-label={`Rank ${idx + 1}: ${option?.label ?? val}`}
+                                    >
+                                        <span style={{
+                                            width: 22,
+                                            height: 22,
+                                            borderRadius: 6,
+                                            background: "rgba(255,255,255,0.12)",
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: 12
+                                        }}>{idx + 1}</span>
+                                        <span>{option?.label ?? val}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </FeedbackGroup>
                     <FeedbackGroup>
-                        <FeedbackLabel>Optional notes about this choice</FeedbackLabel>
+                        <FeedbackLabel>Notes about this choice <Required>*</Required></FeedbackLabel>
                         <FeedbackTextarea
                             value={currentRoundFeedback.notes}
                             onChange={handleFeedbackNotesChange}
@@ -711,12 +770,6 @@ function Movies() {
             <FooterBar>
                 <FooterMessage>{footerMessage}</FooterMessage>
                 <FooterActions>
-                    <ControlButton
-                        onClick={goToPrevious}
-                        disabled={(!isFeedbackStep && roundIndex === 0) || isPersisting}
-                    >
-                        {secondaryLabel}
-                    </ControlButton>
                     <ControlButton
                         primary
                         onClick={goToNext}

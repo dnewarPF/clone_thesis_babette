@@ -4,32 +4,26 @@ export const CATEGORY_CONFIG = [
     {
         id: "action",
         label: "Action",
-        url: `${urls.findActionMovies}&sort_by=popularity.desc&include_adult=false`
+        url: `${urls.findActionMovies}&sort_by=popularity.desc&include_adult=false`,
+        requiredGenreId: 28
     },
     {
         id: "comedy",
         label: "Comedy",
-        url: `${urls.findComedyMovies}&sort_by=popularity.desc&include_adult=false`
+        url: `${urls.findComedyMovies}&sort_by=popularity.desc&include_adult=false`,
+        requiredGenreId: 35
     },
     {
         id: "drama",
         label: "Drama",
-        url: `${urls.findDramaMovies}&sort_by=popularity.desc&include_adult=false`
+        url: `${urls.findDramaMovies}&sort_by=popularity.desc&include_adult=false`,
+        requiredGenreId: 18
     },
     {
         id: "thriller",
         label: "Thriller",
-        url: `${urls.findThrillerMovies}&sort_by=popularity.desc&include_adult=false`
-    },
-    {
-        id: "romance",
-        label: "Romance",
-        url: `${urls.findRomanceMovies}&sort_by=popularity.desc&include_adult=false`
-    },
-    {
-        id: "documentary",
-        label: "Documentary",
-        url: `${urls.findDocumentaries}&sort_by=popularity.desc&include_adult=false`
+        url: `${urls.findThrillerMovies}&sort_by=popularity.desc&include_adult=false`,
+        requiredGenreId: 53
     }
 ];
 
@@ -72,6 +66,6 @@ export const ADJECTIVES = [
     "Fiery"
 ];
 
-export const MOVIES_PER_CATEGORY = 10;
+export const MOVIES_PER_CATEGORY = 15;
 export const ROUNDS_COUNT = 8;
 export const MAX_PAGE_ATTEMPTS = 25;

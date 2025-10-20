@@ -26,16 +26,10 @@ const Title = styled.h3`
     font-weight: 600;
 `;
 
-const AdjectiveBadge = styled.span`
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #ff6f61 0%, #ff9a44 100%);
-    color: #0b0b0b;
-    white-space: nowrap;
+const KeywordsLine = styled.div`
+    margin: 0;
+    font-size: 0.8rem;
+    color: #d9d9d9;
 `;
 
 const MetaRow = styled.div`
@@ -55,8 +49,12 @@ const Rating = styled.span`
     font-weight: 600;
 `;
 
-const Genres = styled.span`
-    color: #d0d0d0;
+// removed per-card Genres display per requirements
+
+const RatingLine = styled.div`
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    color: #d9ffd7;
 `;
 
 const ConfirmButton = styled.button`
@@ -117,24 +115,83 @@ function PlayerMenu({
     vote_average: voteAverage,
     isLargeRow,
     showRatings,
+    showKeywords,
     adjective,
     onConfirm,
     isSelected,
     showDetails
 }) {
     const genres = genreIds ? getGenres(genreIds)?.filter(Boolean) : [];
-    const rating = Math.round((voteAverage ?? 0) * 10);
+    const rating10 = Number(voteAverage ?? 0).toFixed(1);
     const detailsVisible = Boolean(showDetails);
+    const [keywords, setKeywords] = React.useState([]);
+    const [kwLoading, setKwLoading] = React.useState(false);
+    const [kwError, setKwError] = React.useState(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        async function fetchKeywords() {
+            const API_URL = process.env.REACT_APP_API_URL;
+            const API_KEY = process.env.REACT_APP_API_KEY;
+            if (!detailsVisible || !showKeywords || !id || !API_URL || !API_KEY) return;
+            try {
+                setKwLoading(true);
+                setKwError(null);
+                // Try movie keywords first
+                let list = [];
+                try {
+                    const resMovie = await fetch(`${API_URL}/movie/${id}/keywords?api_key=${API_KEY}`);
+                    if (resMovie.ok) {
+                        const json = await resMovie.json();
+                        list = Array.isArray(json?.keywords) ? json.keywords : [];
+                    }
+                } catch (_) {}
+
+                // If none, try TV keywords endpoint
+                if (!list.length) {
+                    try {
+                        const resTv = await fetch(`${API_URL}/tv/${id}/keywords?api_key=${API_KEY}`);
+                        if (resTv.ok) {
+                            const jsonTv = await resTv.json();
+                            list = Array.isArray(jsonTv?.results) ? jsonTv.results : [];
+                        }
+                    } catch (_) {}
+                }
+
+                if (!cancelled) {
+                    const names = list.map((k) => k?.name).filter(Boolean);
+                    const selected = names.slice(0, 3);
+                    setKeywords(selected);
+                }
+            } catch (e) {
+                if (!cancelled) setKwError(String(e?.message || e));
+            } finally {
+                if (!cancelled) setKwLoading(false);
+            }
+        }
+        fetchKeywords();
+        return () => {
+            cancelled = true;
+        };
+    }, [detailsVisible, id]);
 
     return (
         <PlayerContainer isLargeRow={isLargeRow} data-movie-id={id}>
             <TitleRow>
                 <Title isLargeRow={isLargeRow}>{title || name}</Title>
-                {detailsVisible && adjective ? <AdjectiveBadge>{adjective}</AdjectiveBadge> : null}
             </TitleRow>
+            {detailsVisible && showRatings ? (
+                <RatingLine>
+                    Rating: <Rating>{rating10}</Rating>
+                </RatingLine>
+            ) : null}
+            {detailsVisible && showKeywords && keywords.length > 0 ? (
+                <KeywordsLine>
+                    Keywords: {keywords.join(", ")}
+                </KeywordsLine>
+            ) : null}
             <MetaRow $visible={detailsVisible}>
-                {showRatings ? <Rating>{rating}% score</Rating> : null}
-                {genres?.length ? <Genres>{genres.slice(0, 2).join(" · ")}</Genres> : null}
+                {/* other meta could live here if needed */}
             </MetaRow>
             {isSelected ? (
                 <SelectedNotice>Selection made - use the button below to continue</SelectedNotice>
