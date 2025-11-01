@@ -1,0 +1,17 @@
+{
+    "default": {},
+    "drama": {
+        "exclude": {
+            "titles": [
+                "The Substance"
+            ]
+        }
+    },
+    "18": {
+        "exclude": {
+            "titles": [
+                "The Substance"
+            ]
+        }
+    }
+}

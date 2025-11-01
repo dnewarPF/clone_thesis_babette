@@ -1,26 +1,23 @@
 import React from "react";
 import styled from "styled-components";
 import {useNavigate} from "react-router-dom";
+import {useExperimentPreload} from "../../utils/hooks/useExperimentPreload";
 
 const Page = styled.main`
     min-height: 100vh;
-    background: radial-gradient(circle at top, rgba(40, 40, 40, 0.6), #040404 55%);
+    background: #000000;
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: clamp(2rem, 6vw, 4rem);
+    padding: clamp(2rem, 6vw, 5rem);
 `;
 
-const Card = styled.section`
+const Content = styled.section`
     max-width: 860px;
     width: 100%;
-    background: rgba(10, 10, 10, 0.9);
-    border-radius: 24px;
-    padding: clamp(2rem, 4vw, 3.5rem);
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
     display: grid;
-    gap: 1.75rem;
+    gap: clamp(1.5rem, 3vw, 2.5rem);
 `;
 
 const Title = styled.h1`
@@ -29,36 +26,54 @@ const Title = styled.h1`
     font-weight: 700;
 `;
 
-const Intro = styled.p`
+const Section = styled.section`
+    display: grid;
+    gap: 0.75rem;
+`;
+
+const SectionHeading = styled.h2`
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #f3f3f3;
+`;
+
+const SectionText = styled.p`
     margin: 0;
     font-size: 1.05rem;
-    line-height: 1.6rem;
+    line-height: 1.7;
+    color: #e0e0e0;
+`;
+
+const CheckboxRow = styled.label`
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 1.05rem;
+    line-height: 1.7;
     color: #e6e6e6;
 `;
 
-const ConsentList = styled.ul`
-    margin: 0;
-    padding-left: 1.25rem;
-    display: grid;
-    gap: 0.85rem;
-    font-size: 0.95rem;
-    color: #d0d0d0;
-    line-height: 1.45rem;
-`;
-
-const Highlight = styled.span`
-    color: #f97316;
-    font-weight: 600;
+const Checkbox = styled.input`
+    margin-top: 0.3rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid #555555;
+    background: transparent;
+    accent-color: #e50914;
 `;
 
 const ButtonRow = styled.div`
     display: flex;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
+    flex-wrap: wrap;
 `;
 
 const Button = styled.button`
-    padding: 0.75rem 1.75rem;
+    min-width: 160px;
+    padding: 0.85rem 2.25rem;
     border-radius: 999px;
     border: none;
     font-weight: 700;
@@ -66,48 +81,93 @@ const Button = styled.button`
     letter-spacing: 0.08em;
     cursor: pointer;
     transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
-    background: ${({secondary}) => (secondary ? "transparent" : "#e50914")};
-    color: ${({secondary}) => (secondary ? "#d0d0d0" : "#0b0b0b")};
-    border: ${({secondary}) => (secondary ? "2px solid rgba(255,255,255,0.2)" : "none")};
+    background: ${({variant}) => (variant === "secondary" ? "#3a3a3a" : "#e50914")};
+    color: ${({variant}) => (variant === "secondary" ? "#f5f5f5" : "#0b0b0b")};
 
     &:hover {
         transform: translateY(-2px);
-        background: ${({secondary}) => (secondary ? "rgba(255,255,255,0.08)" : "#f6121d")};
-        color: ${({secondary}) => (secondary ? "#ffffff" : "#0b0b0b")};
+        background: ${({variant}) => (variant === "secondary" ? "#4a4a4a" : "#f6121d")};
     }
 
     &:focus-visible {
         outline: 2px solid #ffffff;
         outline-offset: 3px;
     }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        background: ${({variant}) => (variant === "secondary" ? "#3a3a3a" : "#8a090f")};
+    }
+
+    &:disabled:hover {
+        background: ${({variant}) => (variant === "secondary" ? "#3a3a3a" : "#8a090f")};
+    }
 `;
 
 function Consent() {
     const navigate = useNavigate();
+    const [consentConfirmed, setConsentConfirmed] = React.useState(false);
+    useExperimentPreload();
+
+    const handleContinue = () => {
+        if (!consentConfirmed) {
+            return;
+        }
+        navigate("/demographics");
+    };
 
     return (
         <Page>
-            <Card>
+            <Content>
                 <Title>Consent form</Title>
-                <Intro>
-                    Thank you for taking part in this study. Please read the statements below carefully before you
-                    continue. By agreeing you confirm that you have read and understood the information.
-                </Intro>
-                <ConsentList>
-                    <li>Your participation is entirely voluntary and you may stop at any time without giving a reason.</li>
-                    <li>The collected data is used solely for research purposes and processed anonymously.</li>
-                    <li>Please stay focused for roughly 15-20 minutes.</li>
-                    <li><Highlight>No personal data is stored.</Highlight></li>
-                </ConsentList>
-                <Intro>
-                    By agreeing you proceed to a short demographics questionnaire. If you are unsure, you can return to
-                    the start screen.
-                </Intro>
+                <Section>
+                    <SectionHeading>Procedure:</SectionHeading>
+                    <SectionText>
+                        You will be asked to complete a short online task involving several decision scenarios, followed by
+                        a few brief questions. We will also measure the time taken to make a decision for each scenario. The total
+                        duration will be approximately 10 to 15 minutes.
+                    </SectionText>
+                </Section>
+                <Section>
+                    <SectionHeading>Voluntary participation:</SectionHeading>
+                    <SectionText>
+                        Participation is entirely voluntary. You may withdraw from the study at any time without giving a
+                        reason and without any negative consequences.
+                    </SectionText>
+                </Section>
+                <Section>
+                    <SectionHeading>Confidentiality:</SectionHeading>
+                    <SectionText>
+                        All responses will be collected anonymously. No personally identifying information will be stored or
+                        published. Data will be used exclusively for academic research within this master's thesis project.
+                    </SectionText>
+                </Section>
+                <SectionText>
+                    If you have any questions or remarks about this study, please contact me at{" "}
+                    <a href="mailto:b.a.scheepers@students.uu.nl">b.a.scheepers@students.uu.nl</a> or my supervisor Dr. A.
+                    Chatzimparmpas at <a href="mailto:a.chatzimparmpas@uu.nl">a.chatzimparmpas@uu.nl</a>.
+                </SectionText>
+                <CheckboxRow htmlFor="consent-confirmation">
+                    <Checkbox
+                        id="consent-confirmation"
+                        type="checkbox"
+                        checked={consentConfirmed}
+                        onChange={(event) => setConsentConfirmed(event.target.checked)}
+                    />
+                    I confirm that I have read this information, understand my rights, and consent to participate in this
+                    study.
+                </CheckboxRow>
                 <ButtonRow>
-                    <Button onClick={() => navigate("/demographics")}>I agree</Button>
-                    <Button secondary onClick={() => navigate("/")}>I decline</Button>
+                    <Button type="button" variant="secondary" onClick={() => navigate("/")}>
+                        Go back
+                    </Button>
+                    <Button type="button" onClick={handleContinue} disabled={!consentConfirmed}>
+                        Continue
+                    </Button>
                 </ButtonRow>
-            </Card>
+            </Content>
         </Page>
     );
 }

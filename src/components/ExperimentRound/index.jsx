@@ -52,11 +52,6 @@ const CategoryTitle = styled.h2`
     font-weight: 600;
 `;
 
-const CategorySubtitle = styled.span`
-    font-size: 0.85rem;
-    color: #c0c0c0;
-`;
-
 const Grid = styled.div`
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -72,7 +67,9 @@ function ExperimentRound({
     activeMovieId,
     onSetActive,
     onConfirmSelection,
-    selectedMovieId
+    selectedMovieId,
+    showCategoryTabs = true,
+    renderHelp
 }) {
     const config = round?.config ?? {};
     const categories = Array.isArray(round?.categories) ? round.categories : [];
@@ -87,7 +84,7 @@ function ExperimentRound({
         }
         setActiveCategoryId(firstCategoryId);
         onSetActive(null);
-    }, [round?.id, firstCategoryId, onSetActive]);
+    }, [round, firstCategoryId, onSetActive]);
 
     const handleCategoryChange = (categoryId) => {
         setActiveCategoryId(categoryId);
@@ -102,29 +99,31 @@ function ExperimentRound({
 
     return (
         <>
-            <CategoryTabs>
-                {categories.map((category) => {
-                    const isActive = category.id === activeCategory.id;
-                    return (
-                        <CategoryButton
-                            key={category.id}
-                            type="button"
-                            $active={isActive}
-                            aria-pressed={isActive}
-                            onClick={() => handleCategoryChange(category.id)}
-                        >
-                            {category.label}
-                        </CategoryButton>
-                    );
-                })}
-            </CategoryTabs>
+            {showCategoryTabs && categories.length > 1 ? (
+                <CategoryTabs>
+                    {categories.map((category) => {
+                        const isActive = category.id === activeCategory.id;
+                        return (
+                            <CategoryButton
+                                key={category.id}
+                                type="button"
+                                $active={isActive}
+                                aria-pressed={isActive}
+                                onClick={() => handleCategoryChange(category.id)}
+                            >
+                                {category.label}
+                            </CategoryButton>
+                        );
+                    })}
+                    {renderHelp ? renderHelp() : null}
+                </CategoryTabs>
+            ) : renderHelp ? (
+                <CategoryTabs>{renderHelp()}</CategoryTabs>
+            ) : null}
 
             <Section key={activeCategory.id}>
                 <CategoryHeader>
                     <CategoryTitle>{activeCategory.label}</CategoryTitle>
-                    <CategorySubtitle>
-                        {activeCategory.movies.length} movies in this category
-                    </CategorySubtitle>
                 </CategoryHeader>
                 <Grid>
                     {activeCategory.movies.map((movie, index) => (
@@ -138,6 +137,7 @@ function ExperimentRound({
                             onLeave={() => onSetActive(null)}
                             showPreview={config.usePreview}
                             showRatings={config.showRatings}
+                            showKeywords={config.useAdjectives}
                             adjective={config.useAdjectives ? movie?.experimentMeta?.adjective : undefined}
                             onConfirm={onConfirmSelection}
                             isSelected={selectedMovieId === movie.id}
@@ -167,13 +167,17 @@ ExperimentRound.propTypes = {
     activeMovieId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     onSetActive: PropTypes.func.isRequired,
     onConfirmSelection: PropTypes.func.isRequired,
-    selectedMovieId: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
+    selectedMovieId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    showCategoryTabs: PropTypes.bool,
+    renderHelp: PropTypes.func
 };
 
 ExperimentRound.defaultProps = {
     round: null,
     activeMovieId: null,
-    selectedMovieId: null
+    selectedMovieId: null,
+    showCategoryTabs: true,
+    renderHelp: undefined
 };
 
 export default ExperimentRound;

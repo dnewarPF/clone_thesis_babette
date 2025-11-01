@@ -1,6 +1,5 @@
 import React from "react";
 import styled from "styled-components";
-import {Link, useLocation, useNavigate} from "react-router-dom";
 
 const Page = styled.main`
     min-height: 100vh;
@@ -36,108 +35,31 @@ const Paragraph = styled.p`
     color: #dddddd;
 `;
 
-const Card = styled.div`
-    padding: 1.25rem 1.4rem;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    display: grid;
-    gap: 0.9rem;
-`;
-
-const StatList = styled.ul`
-    margin: 0;
-    padding-left: 1.2rem;
-    display: grid;
-    gap: 0.55rem;
-    font-size: 0.95rem;
-    color: #dcdcdc;
-`;
-
-const Actions = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: center;
-`;
-
-const PrimaryButton = styled.button`
-    padding: 0.8rem 2.2rem;
-    border-radius: 999px;
-    border: none;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    background: #e50914;
-    color: #0b0b0b;
-    transition: transform 0.2s ease, background 0.2s ease;
-
-    &:hover {
-        transform: translateY(-2px);
-        background: #f6121d;
-    }
-
-    &:focus-visible {
-        outline: 3px solid #ffffff;
-        outline-offset: 4px;
-    }
-`;
-
-const SecondaryLink = styled(Link)`
-    font-size: 0.95rem;
-    color: #cfcfcf;
-    text-decoration: underline;
-
-    &:hover {
-        color: #ffffff;
-    }
-`;
-
 function Completion() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const participantPid = location.state?.pid ?? null;
-    const totalDecisionTimeSeconds = location.state?.totalDecisionTimeSeconds ?? null;
-    const roundsCompleted = location.state?.roundsCompleted ?? null;
-
     return (
         <Page>
             <Wrapper>
-                <Title>All done! 🎬</Title>
+                <Title>Thank you!</Title>
                 <Paragraph>
-                    Thank you for your time and attention. Your participation helps us understand how different
-                    variables influence viewing choices.
+                    We appreciate your time and attention throughout the experiment and questionnaire. This study forms
+                    part of a master's thesis that examines which descriptive features on streaming platforms most
+                    strongly influence decision-making, including elements such as the title, teaser image, genre,
+                    rating, keywords and video preview of a movie.
+                </Paragraph>
+                <Paragraph>
+                    The data you provided will help us compare how participants weigh these features across scenarios and
+                    will contribute to academic insights on user experience and the design of user interfaces.
                 </Paragraph>
 
-                {roundsCompleted || totalDecisionTimeSeconds ? (
-                    <Card>
-                        <Paragraph as="h2" style={{margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "#f5f5f5"}}>
-                            Session highlights
-                        </Paragraph>
-                        <StatList>
-                            {roundsCompleted ? <li>Rounds completed: {roundsCompleted}</li> : null}
-                            {totalDecisionTimeSeconds ? (
-                                <li>
-                                    Total decision time: {Math.round(totalDecisionTimeSeconds)} seconds
-                                </li>
-                            ) : null}
-                            {participantPid ? <li>Participant ID: {participantPid}</li> : null}
-                        </StatList>
-                    </Card>
-                ) : null}
-
                 <Paragraph>
-                    Questions or curious about the study? Feel free to reach out to the research team. You can close this
-                    window whenever you are ready.
+                    If you have any questions or concerns regarding this study, please contact me at{" "}
+                    <a href="mailto:b.a.scheepers@students.uu.nl">b.a.scheepers@students.uu.nl</a> or my supervisor
+                    Dr. A. Chatzimparmpas at{" "}
+                    <a href="mailto:a.chatzimparmpas@uu.nl">a.chatzimparmpas@uu.nl</a>.
                 </Paragraph>
-
-                <Actions>
-                    <PrimaryButton type="button" onClick={() => navigate("/")}>
-                        Back to start
-                    </PrimaryButton>
-                    <SecondaryLink to="/instructions">View instructions again</SecondaryLink>
-                </Actions>
+                <Paragraph>
+                    You may now close this window at your convenience.
+                </Paragraph>
             </Wrapper>
         </Page>
     );

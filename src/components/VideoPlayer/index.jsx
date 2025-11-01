@@ -1,8 +1,7 @@
-import React, {useMemo, useState} from "react";
+import React, {useMemo, useState, useEffect, useCallback, useRef} from "react";
 import YouTube from "react-youtube";
-import movieTrailer from "movie-trailer";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
-import {faExpand, faVolumeHigh, faVolumeXmark} from "@fortawesome/free-solid-svg-icons";
+import {faVolumeHigh, faVolumeXmark} from "@fortawesome/free-solid-svg-icons";
 import urls from "../../utils/urls";
 import {Loader} from "../../utils/style/Atoms";
 import {playerOptions, useTransitionControl} from "../../utils/hooks";
@@ -52,15 +51,17 @@ function VideoPlayer({
         ...defaultStyle,
         ...transitionStyles[stateVideo] ?? {},
     };
-    const [trailerURL, setTrailerURL] = useState("");
+    const [trailerURL, setTrailerURL] = useState(null);
     const [vidError, setVidError] = useState(false);
     const [isVideoLoading, setIsVideoLoading] = useState(false);
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const [isVideoEnding, setIsVideoEnding] = useState(false);
-    const [playerObj, setPlayerObj] = useState({});
+    const playerRef = useRef(null);
     const [sound, setSound] = useState(false);
-    const [requestedId, setRequestedId] = useState(null);
     const [isHovering, setIsHovering] = useState(false);
+    const hoveringRef = useRef(false);
+    const cardRef = useRef(null);
+    const [hoverShift, setHoverShift] = useState(0);
 
     const imagePath = useMemo(() => {
         if (!movie) {
@@ -72,100 +73,213 @@ function VideoPlayer({
         }
         return `${urls.findImagesUrl}${isLargeRow ? movie.poster_path || fallback : fallback}`;
     }, [isLargeRow, movie]);
+    const preloadedTrailerId =
+        movie?.experimentMeta?.trailerId ?? movie?.youtubeTrailerId ?? null;
 
     playerOptions.height = "320";
     playerOptions.playerVars.mute = !sound ? 1 : 0;
 
-    const resetStateVideo = () => {
-        setTrailerURL("");
+    const stopPlayer = useCallback(() => {
+        const player = playerRef.current;
+        if (!player) {
+            return;
+        }
+        try {
+            if (typeof player.stopVideo === "function") {
+                player.stopVideo();
+            }
+        } catch (error) {
+            console.debug("VideoPlayer: stopVideo failed", error);
+        }
+        try {
+            if (typeof player.mute === "function") {
+                player.mute();
+            }
+        } catch (error) {
+            console.debug("VideoPlayer: mute failed", error);
+        }
+        playerRef.current = null;
+    }, []);
+
+
+    const adjustHoverShift = useCallback(() => {
+        if (!hoveringRef.current) {
+            setHoverShift(0);
+            return;
+        }
+        if (typeof window === "undefined" || typeof document === "undefined") {
+            return;
+        }
+        const node = cardRef.current;
+        if (!node) {
+            return;
+        }
+        const rect = node.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        if (viewportWidth === 0) {
+            setHoverShift(0);
+            return;
+        }
+        const margin = 16;
+        const isMobile = window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+        const scale = isMobile
+            ? (showPreview ? 1.45 : 1.3)
+            : (showPreview ? 1.6 : 1.45);
+        const scaledWidth = rect.width * scale;
+        const extraWidth = scaledWidth - rect.width;
+        if (extraWidth <= 0) {
+            setHoverShift(0);
+            return;
+        }
+        const halfExtra = extraWidth / 2;
+        const scaledLeft = rect.left - halfExtra;
+        const scaledRight = rect.right + halfExtra;
+        let shift = 0;
+        if (scaledLeft < margin) {
+            shift = margin - scaledLeft;
+        } else if (scaledRight > viewportWidth - margin) {
+            shift = (viewportWidth - margin) - scaledRight;
+        }
+        if (Math.abs(shift) < 0.5) {
+            shift = 0;
+        }
+        setHoverShift(shift);
+    }, [showPreview]);
+
+    const resetStateVideo = useCallback(() => {
+        hoveringRef.current = false;
+        setTrailerURL(null);
         setVidError(false);
         setIsVideoLoading(false);
         exitedVideo();
         setIsVideoPlaying(false);
         setSound(false);
+        stopPlayer();
+        setHoverShift(0);
         setIsVideoEnding(false);
-        setRequestedId(null);
         setIsHovering(false);
         onLeave?.();
-    };
+    }, [exitedVideo, onLeave, stopPlayer]);
 
     const handleVideo = () => {
+        stopPlayer();
+        setIsVideoPlaying(false);
+        setIsVideoLoading(false);
+        setIsVideoEnding(false);
+        hoveringRef.current = true;
         setIsHovering(true);
+        if (typeof window !== "undefined") {
+            window.requestAnimationFrame(() => {
+                adjustHoverShift();
+            });
+        }
+        if (showPreview) {
+            setSound(true);
+        }
         onShow?.(movie?.id);
         if (!showPreview || !movie) {
             return;
         }
-        if (isVideoPlaying || vidError) {
+        if (vidError) {
             return;
         }
-        if (requestedId === movie.id && trailerURL) {
+        if (!preloadedTrailerId) {
+            setVidError(true);
+            setIsVideoLoading(false);
+            setIsVideoPlaying(false);
+            return;
+        }
+        if (isVideoPlaying) {
+            return;
+        }
+        if (trailerURL === preloadedTrailerId) {
             enterVideo();
             setIsVideoLoading(false);
             return;
         }
         enterVideo();
-        setTrailerURL("");
         setVidError(false);
-        setIsVideoLoading(true);
         setIsVideoEnding(false);
-        setRequestedId(movie.id);
-        movieTrailer(movie?.name || movie?.title || movie?.original_title || "")
-            .then((url) => {
-                const urlParams = new URLSearchParams(new URL(url).search);
-                setTrailerURL(urlParams.get("v"));
-                setVidError(false);
-            })
-            .catch(() => {
-                setTrailerURL("");
-                setVidError(true);
-            });
+        setTrailerURL(preloadedTrailerId);
+        setIsVideoLoading(true);
     };
 
-    const enableSound = () => {
-        if (!playerObj) {
+    useEffect(() => {
+        if (!isHovering) {
+            setHoverShift(0);
             return;
         }
-        if (playerObj.isMuted()) {
-            playerObj.unMute();
-            playerObj.setVolume(50);
+        if (typeof window === "undefined") {
+            return;
+        }
+        adjustHoverShift();
+        const handleResize = () => adjustHoverShift();
+        window.addEventListener("resize", handleResize);
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, [isHovering, adjustHoverShift]);
+
+    useEffect(() => {
+        if (isHovering) {
+            adjustHoverShift();
+        }
+    }, [trailerURL, adjustHoverShift, isHovering]);
+
+    useEffect(() => {
+        return () => {
+            stopPlayer();
+        };
+    }, [stopPlayer]);
+
+    const enableSound = () => {
+        const player = playerRef.current;
+        if (!player) {
+            return;
+        }
+        if (typeof player.isMuted === "function" && player.isMuted()) {
+            player.unMute();
+            if (typeof player.setVolume === "function") {
+                player.setVolume(50);
+            }
             setSound(true);
         } else {
-            playerObj.mute();
+            if (typeof player.mute === "function") {
+                player.mute();
+            }
             setSound(false);
         }
     };
 
-    const enableFullScreen = () => {
-        const playerElement = document.getElementById(`vidPlayer-${movie?.id}`);
-        if (!playerElement) {
-            return;
-        }
-        const requestFullScreen = playerElement.requestFullscreen
-            || playerElement.mozRequestFullScreen
-            || playerElement.webkitRequestFullScreen
-            || playerElement.msRequestFullscreen;
-        if (requestFullScreen) {
-            requestFullScreen.call(playerElement);
-        }
-    };
-
-    const shouldRenderVideo = showPreview && !isSelected && (isActive || stateVideo === "exiting" || stateVideo === "exited") && !vidError;
+    const shouldRenderVideo =
+        showPreview &&
+        !isSelected &&
+        !vidError &&
+        Boolean(trailerURL) &&
+        (isActive || stateVideo === "entering" || stateVideo === "entered");
 
     return (
         <Card
+            ref={cardRef}
             isLargeRow={isLargeRow}
             isSelected={isSelected}
             $hovered={isHovering}
+            $hoverShift={hoverShift}
+            $previewEnabled={showPreview}
             key={`${movie?.id ?? index}-card`}
             onMouseEnter={handleVideo}
             onMouseLeave={resetStateVideo}
+            onPointerLeave={resetStateVideo}
+            onPointerCancel={resetStateVideo}
             onTouchStart={handleVideo}
             onTouchEnd={resetStateVideo}
             onTouchCancel={resetStateVideo}
             onFocus={() => setIsHovering(true)}
-            onBlur={resetStateVideo}
         >
-            <MediaSurface>
+            <MediaSurface
+                $hovered={isHovering}
+                $previewEnabled={showPreview}
+            >
                 {shouldRenderVideo ? (
                     <LoaderParentContainer style={{...videoStyle}}>
                         <LoaderContainer isVideoLoading={isVideoLoading} isLargeRow={isLargeRow} stateVideo={stateVideo}>
@@ -192,32 +306,59 @@ function VideoPlayer({
                                     <SoundContainer onClick={enableSound}>
                                         <FontAwesomeIcon icon={sound ? faVolumeHigh : faVolumeXmark}/>
                                     </SoundContainer>
-                                    <SoundContainer onClick={enableFullScreen}>
-                                        <FontAwesomeIcon icon={faExpand}/>
-                                    </SoundContainer>
                                 </VideoActions>
                             ) : null}
                             <YouTube
                                 onPlay={(e) => {
-                                    setPlayerObj(e.target);
+                                    playerRef.current = e.target;
+                                    if (sound) {
+                                        e.target.unMute();
+                                        if (typeof e.target.setVolume === "function") {
+                                            e.target.setVolume(50);
+                                        }
+                                    } else {
+                                        e.target.mute();
+                                    }
+                                    if (!isHovering || !hoveringRef.current) {
+                                        stopPlayer();
+                                        return;
+                                    }
                                     setIsVideoLoading(false);
                                     setIsVideoPlaying(true);
                                 }}
                                 onError={() => {
                                     setVidError(true);
                                     setIsVideoPlaying(false);
+                                    setIsVideoLoading(false);
+                                    setSound(false);
+                                    stopPlayer();
                                 }}
                                 onReady={(e) => {
+                                    playerRef.current = e.target;
+                                    if (sound) {
+                                        e.target.unMute();
+                                        if (typeof e.target.setVolume === "function") {
+                                            e.target.setVolume(50);
+                                        }
+                                    } else {
+                                        e.target.mute();
+                                    }
+                                    if (!isHovering || !hoveringRef.current) {
+                                        stopPlayer();
+                                        return;
+                                    }
                                     e.target.playVideo();
                                     setIsVideoPlaying(false);
                                     setIsVideoLoading(true);
                                 }}
                                 id={`vidPlayer-${movie?.id}`}
-                                videoId={trailerURL}
+                                videoId={trailerURL || undefined}
                                 onEnd={() => {
                                     setIsVideoLoading(true);
                                     setIsVideoPlaying(false);
                                     setIsVideoEnding(true);
+                                    setSound(false);
+                                    stopPlayer();
                                 }}
                                 opts={playerOptions}
                             />
@@ -232,18 +373,18 @@ function VideoPlayer({
                     />
                 )}
                 <SelectionOverlay visible={isSelected}>
-                    Selection made - use the button below to continue
+                    Selected movie
                 </SelectionOverlay>
             </MediaSurface>
             <PlayerMenu
                 id={movie?.id}
                 name={movie?.name}
                 title={movie?.title}
-                genre_ids={movie?.genre_ids ?? []}
                 vote_average={movie?.vote_average}
                 isLargeRow={isLargeRow}
                 showRatings={showRatings}
                 showKeywords={showKeywords}
+                keywords={movie?.experimentMeta?.keywords ?? []}
                 adjective={adjective}
                 onConfirm={() => onConfirm?.(movie)}
                 isSelected={isSelected}

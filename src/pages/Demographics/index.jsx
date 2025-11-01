@@ -2,10 +2,11 @@ import React, {useEffect, useMemo, useState} from "react";
 import styled from "styled-components";
 import {useNavigate} from "react-router-dom";
 import {supabase} from "../../utils/supabaseClient";
+import {useExperimentPreload} from "../../utils/hooks/useExperimentPreload";
 
 const Page = styled.main`
     min-height: 100vh;
-    background: #050505;
+    background: #000000;
     color: #ffffff;
     display: flex;
     justify-content: center;
@@ -15,12 +16,8 @@ const Page = styled.main`
 const Wrapper = styled.section`
     width: 100%;
     max-width: 720px;
-    background: rgba(16, 16, 16, 0.92);
-    border-radius: 22px;
-    padding: clamp(2rem, 4vw, 3.5rem);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     display: grid;
-    gap: 1.75rem;
+    gap: clamp(0.6rem, 2.5vw, 0.9rem);
 `;
 
 const Title = styled.h1`
@@ -29,30 +26,23 @@ const Title = styled.h1`
     font-weight: 700;
 `;
 
-const Paragraph = styled.p`
-    margin: 0;
-    font-size: 1.05rem;
-    line-height: 1.65rem;
-    color: #dddddd;
-`;
-
-const QuestionnaireCard = styled.section`
-    padding: 1.5rem clamp(1.5rem, 3vw, 2.25rem);
-    border-radius: 18px;
-    background: rgba(12, 12, 12, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+const FormSection = styled.section`
     display: grid;
-    gap: 1.4rem;
+    gap: clamp(0.85rem, 2vw, 1.05rem);
+    width: 100%;
+    margin-top: -0.6rem;
 `;
 
 const QuestionsGrid = styled.div`
     display: grid;
-    gap: 1.2rem;
+    gap: 0.9rem;
+    width: 100%;
 `;
 
 const FieldGroup = styled.div`
     display: grid;
     gap: 0.55rem;
+    width: 100%;
 `;
 
 const FieldLabel = styled.label`
@@ -74,8 +64,10 @@ const TextInput = styled.input`
     border: 1px solid rgba(255, 255, 255, 0.14);
     background: rgba(10, 10, 10, 0.74);
     color: #ffffff;
-    padding: 0.75rem 0.9rem;
+    padding: 0.85rem 1rem;
     font-size: 0.95rem;
+    min-height: 3.1rem;
+    box-sizing: border-box;
 
     &:focus-visible {
         outline: 2px solid #e50914;
@@ -94,9 +86,15 @@ const SelectInput = styled.select`
     border: 1px solid rgba(255, 255, 255, 0.14);
     background: rgba(10, 10, 10, 0.74);
     color: #ffffff;
-    padding: 0.75rem 0.9rem;
+    padding: 0.85rem 2.4rem 0.85rem 1rem;
     font-size: 0.95rem;
+    min-height: 3.1rem;
+    box-sizing: border-box;
     appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #ffffff 50%), linear-gradient(135deg, #ffffff 50%, transparent 50%);
+    background-position: calc(100% - 1.3rem) center, calc(100% - 0.9rem) center;
+    background-size: 0.55rem 0.55rem, 0.55rem 0.55rem;
+    background-repeat: no-repeat;
 
     &:focus-visible {
         outline: 2px solid #e50914;
@@ -109,9 +107,9 @@ const SelectInput = styled.select`
     }
 `;
 
-const HelperText = styled.span`
+const InlineError = styled.span`
     font-size: 0.85rem;
-    color: #bdbdbd;
+    color: #ffb3b3;
 `;
 
 const FeedbackMessage = styled.div`
@@ -131,8 +129,11 @@ const FeedbackMessage = styled.div`
 const ButtonRow = styled.div`
     display: flex;
     flex-wrap: wrap;
-    gap: 0.85rem;
+    gap: 1rem;
     align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: -0.3rem;
 `;
 
 const PrimaryButton = styled.button`
@@ -146,6 +147,7 @@ const PrimaryButton = styled.button`
     background: #e50914;
     color: #0b0b0b;
     transition: transform 0.2s ease, background 0.2s ease;
+    margin-left: auto;
 
     &:hover {
         transform: translateY(-3px);
@@ -190,6 +192,7 @@ const SecondaryButton = styled.button`
 
 function Demographics() {
     const navigate = useNavigate();
+    useExperimentPreload();
     const [age, setAge] = useState("");
     const [gender, setGender] = useState("");
     const [origin, setOrigin] = useState("");
@@ -254,16 +257,39 @@ function Demographics() {
     const experienceOptions = useMemo(
         () => [
             {value: "", label: "Select an option"},
-            {value: "none", label: "Never used"},
-            {value: "limited", label: "Occasionally"},
-            {value: "regular", label: "Regularly"},
-            {value: "expert", label: "Daily / expert"}
+            {value: "lt-3", label: "Less than 3 hours per week"},
+            {value: "3-6", label: "Between 3 and 6 hours per week"},
+            {value: "6-9", label: "Between 6 and 9 hours per week"},
+            {value: "9-12", label: "Between 9 and 12 hours per week"},
+            {value: "gt-12", label: "More than 12 hours per week"}
         ],
         []
     );
 
-    const isFormValid =
-        age.trim() !== "" && gender !== "" && origin.trim() !== "" && experience !== "";
+    const ageNumber = Number(age);
+    const hasAgeValue = age.trim() !== "";
+    const isAgeNumeric = hasAgeValue && !Number.isNaN(ageNumber);
+    const ageBelowMinimum = isAgeNumeric && ageNumber < 18;
+    const ageAboveMaximum = isAgeNumeric && ageNumber > 100;
+    const ageError = (() => {
+        if (!hasAgeValue) {
+            return "Please enter your age.";
+        }
+        if (!isAgeNumeric) {
+            return "Please enter a numeric age.";
+        }
+        if (ageBelowMinimum) {
+            return "You must be at least 18 years old to participate.";
+        }
+        if (ageAboveMaximum) {
+            return "Please double-check your age.";
+        }
+        return null;
+    })();
+    const isAgeValid = ageError === null;
+    const otherFieldsComplete = gender !== "" && origin.trim() !== "" && experience !== "";
+    const showAgeError = Boolean(ageError) && (hasAgeValue || touched);
+    const isFormValid = isAgeValid && otherFieldsComplete;
 
     const navigateToInstructions = (pid, demographicsRecordId) => {
         navigate("/instructions", {
@@ -276,9 +302,15 @@ function Demographics() {
         setTouched(true);
         setSubmitError(null);
 
-        if (!isFormValid && !(hasSubmitted && participantPid)) {
-            setSubmitError("Please complete all required questions before continuing.");
-            return;
+        if (!(hasSubmitted && participantPid)) {
+            if (!isAgeValid) {
+                setSubmitError(ageError ?? "Please verify your age (18-100)." );
+                return;
+            }
+            if (!otherFieldsComplete) {
+                setSubmitError("Please complete all required questions before continuing.");
+                return;
+            }
         }
 
         if (hasSubmitted && participantPid) {
@@ -347,26 +379,20 @@ function Demographics() {
     return (
         <Page>
             <Wrapper as="form" onSubmit={handleSubmit} noValidate>
-                <div>
-                    <Title>Demographic information</Title>
-                    <Paragraph>
-                        Before we begin, please answer a few background questions. Your responses are stored anonymously
-                        and only used to interpret the experiment results.
-                    </Paragraph>
-                </div>
+                <Title>Demographic information</Title>
 
-                <QuestionnaireCard>
+                <FormSection>
                     <QuestionsGrid>
                         <FieldGroup>
                             <FieldLabel htmlFor="age">
-                                Age<Required>*</Required>
+                                What is your age?<Required>*</Required>
                             </FieldLabel>
                             <TextInput
                                 id="age"
                                 type="number"
                                 inputMode="numeric"
-                                min="10"
-                                max="120"
+                                min="18"
+                                max="100"
                                 placeholder="e.g., 28"
                                 value={age}
                                 onChange={(event) => {
@@ -375,13 +401,15 @@ function Demographics() {
                                         setSubmitError(null);
                                     }
                                 }}
-                                aria-invalid={touched && age.trim() === ""}
+                                aria-invalid={showAgeError}
                             />
-                            <HelperText>Enter your age in years.</HelperText>
+                            {showAgeError ? (
+                                <InlineError role="alert">{ageError}</InlineError>
+                            ) : null}
                         </FieldGroup>
                         <FieldGroup>
                             <FieldLabel htmlFor="gender">
-                                Gender<Required>*</Required>
+                                What is your gender?<Required>*</Required>
                             </FieldLabel>
                             <SelectInput
                                 id="gender"
@@ -403,7 +431,7 @@ function Demographics() {
                         </FieldGroup>
                         <FieldGroup>
                             <FieldLabel htmlFor="origin">
-                                Background<Required>*</Required>
+                                What is your nationality?<Required>*</Required>
                             </FieldLabel>
                             <TextInput
                                 id="origin"
@@ -418,11 +446,10 @@ function Demographics() {
                                 }}
                                 aria-invalid={touched && origin.trim() === ""}
                             />
-                            <HelperText>Your cultural or ethnic background, in your own words.</HelperText>
                         </FieldGroup>
                         <FieldGroup>
                             <FieldLabel htmlFor="experience">
-                                Experience with streaming platforms<Required>*</Required>
+                                How many hours per week do you spend using streaming platforms on average?<Required>*</Required>
                             </FieldLabel>
                             <SelectInput
                                 id="experience"
@@ -456,18 +483,18 @@ function Demographics() {
                             </FeedbackMessage>
                         )
                     )}
-                </QuestionnaireCard>
+                </FormSection>
 
                 <ButtonRow>
+                    <SecondaryButton type="button" onClick={() => navigate("/consent")} disabled={isSubmitting}>
+                        Go back to consent
+                    </SecondaryButton>
                     <PrimaryButton
                         type="submit"
                         disabled={isSubmitting || (!hasSubmitted && !isFormValid)}
                     >
                         {isSubmitting ? "Saving..." : "Continue to instructions"}
                     </PrimaryButton>
-                    <SecondaryButton type="button" onClick={() => navigate("/consent")} disabled={isSubmitting}>
-                        Back to consent
-                    </SecondaryButton>
                 </ButtonRow>
             </Wrapper>
         </Page>

@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from "react";
 import styled from "styled-components";
-import {Link, useLocation, useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import {supabase} from "../../utils/supabaseClient";
 
 const Page = styled.main`
@@ -34,6 +34,16 @@ const Paragraph = styled.p`
     font-size: 1.05rem;
     line-height: 1.6rem;
     color: #dddddd;
+`;
+
+const SummaryGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
 `;
 
 const SummaryList = styled.ul`
@@ -145,35 +155,6 @@ const SubmitButton = styled.button`
     }
 `;
 
-const SecondaryLink = styled(Link)`
-    font-size: 0.9rem;
-    color: #9f9f9f;
-    text-decoration: underline;
-
-    &:hover {
-        color: #ffffff;
-    }
-`;
-
-const RestartButton = styled.button`
-    background: none;
-    border: none;
-    font-size: 0.9rem;
-    color: #9f9f9f;
-    text-decoration: underline;
-    cursor: pointer;
-    padding: 0;
-
-    &:hover {
-        color: #ffffff;
-    }
-
-    &:focus-visible {
-        outline: 2px solid #ffffff;
-        outline-offset: 3px;
-    }
-`;
-
 const ErrorMessage = styled.div`
     padding: 0.75rem 1rem;
     border-radius: 10px;
@@ -205,25 +186,20 @@ const Required = styled.span`
     color: #e50914;
 `;
 
-const likertScale = [
-    {value: "1", label: "1"},
-    {value: "2", label: "2"},
-    {value: "3", label: "3"},
-    {value: "4", label: "4"},
-    {value: "5", label: "5"}
-];
-
 const infoOptions = [
-    {value: "preview", label: "Video preview"},
+    {value: "title", label: "Title"},
+    {value: "image", label: "Teaser image"},
+    {value: "genre", label: "Genre"},
     {value: "ratings", label: "Ratings"},
     {value: "adjectives", label: "Keywords"},
-    {value: "none", label: "Something else"}
+    {value: "preview", label: "Video preview"}
 ];
 
 function Questionnaire() {
     const location = useLocation();
     const navigate = useNavigate();
-    const selections = location.state?.selections ?? [];
+    const rawSelections = location.state?.selections ?? null;
+    const selections = useMemo(() => rawSelections ?? [], [rawSelections]);
     const sessionId = location.state?.sessionId ?? null;
     const participantPid = location.state?.pid ?? null;
 
@@ -240,27 +216,23 @@ function Questionnaire() {
     );
 
     const [answers, setAnswers] = useState({
-        satisfaction: "",
-        easeOfUse: "",
-        infoClarity: "",
         mostHelpful: "",
+        explanation: "",
         additionalFeedback: ""
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
-    const handleRestart = () => {
-        navigate("/");
-    };
-
     const handleRadioChange = (field) => (event) => {
         const value = event.target.value;
+        setSubmitError(null);
         setAnswers((prev) => ({...prev, [field]: value}));
     };
 
     const handleTextChange = (event) => {
         const {name, value} = event.target;
+        setSubmitError(null);
         setAnswers((prev) => ({...prev, [name]: value}));
     };
 
@@ -271,8 +243,14 @@ function Questionnaire() {
             return;
         }
 
-        const requiredFields = ["satisfaction", "easeOfUse", "infoClarity", "mostHelpful"];
-        const missing = requiredFields.filter((field) => !answers[field]);
+        const requiredFields = ["mostHelpful", "explanation"];
+        const missing = requiredFields.filter((field) => {
+            const value = answers[field];
+            if (field === "explanation") {
+                return !value.trim();
+            }
+            return !value;
+        });
         if (missing.length) {
             setSubmitError("Please answer all required questions before submitting.");
             return;
@@ -304,10 +282,8 @@ function Questionnaire() {
             );
 
             const answersPayload = {
-                satisfaction: Number(answers.satisfaction),
-                easeOfUse: Number(answers.easeOfUse),
-                infoClarity: Number(answers.infoClarity),
                 mostHelpful: answers.mostHelpful,
+                explanation: answers.explanation.trim(),
                 additionalFeedback: answers.additionalFeedback.trim() || null,
                 sessionId,
                 selectionSummary,
@@ -343,25 +319,38 @@ function Questionnaire() {
     };
 
     const formDisabled = isSubmitting || submitSuccess || !sessionId;
+    const hasRequiredAnswers = Boolean(answers.mostHelpful && answers.explanation.trim());
+    const submitDisabled = formDisabled || !hasRequiredAnswers;
+    const leftColumnSelections = sortedSelections.slice(0, 4);
+    const rightColumnSelections = sortedSelections.slice(4, 8);
 
     return (
         <Page>
             <Wrapper>
-                <Title>Thank you for completing the experiment</Title>
+                <Title>Final Questionnaire</Title>
                 <Paragraph>
-                    We appreciate your participation. Please answer the short questionnaire below so we can understand
-                    how the different variables affected your choices.
+                    Please complete the following questions to provide a final reflection on the experimental conditions
+                    and their influence on your selections.
                 </Paragraph>
                 {sortedSelections.length ? (
                     <>
                         <Paragraph><strong>Summary of your choices:</strong></Paragraph>
-                        <SummaryList>
-                            {sortedSelections.map((entry) => (
-                                <li key={entry.round}>
-                                    Round {entry.displayRound}: {entry.title} - {entry.decisionTimeSeconds}s
-                                </li>
-                            ))}
-                        </SummaryList>
+                        <SummaryGrid>
+                            <SummaryList>
+                                {leftColumnSelections.map((entry) => (
+                                    <li key={`summary-left-${entry.round}`}>
+                                        Round {entry.displayRound}: {entry.title} - {entry.decisionTimeSeconds}s
+                                    </li>
+                                ))}
+                            </SummaryList>
+                            <SummaryList>
+                                {rightColumnSelections.map((entry) => (
+                                    <li key={`summary-right-${entry.round}`}>
+                                        Round {entry.displayRound}: {entry.title} - {entry.decisionTimeSeconds}s
+                                    </li>
+                                ))}
+                            </SummaryList>
+                        </SummaryGrid>
                     </>
                 ) : (
                     <Paragraph>
@@ -380,70 +369,7 @@ function Questionnaire() {
                 <Form onSubmit={handleSubmit}>
                     <QuestionGroup>
                         <QuestionLabel>
-                            How satisfied were you with the overall experiment experience? <Required>*</Required>
-                        </QuestionLabel>
-                        <RadioGroup>
-                            {likertScale.map((option) => (
-                                <RadioOption key={`satisfaction-${option.value}`}>
-                                    <input
-                                        type="radio"
-                                        name="satisfaction"
-                                        value={option.value}
-                                        checked={answers.satisfaction === option.value}
-                                        onChange={handleRadioChange("satisfaction")}
-                                        disabled={formDisabled}
-                                    />
-                                    <span>{option.label}</span>
-                                </RadioOption>
-                            ))}
-                        </RadioGroup>
-                    </QuestionGroup>
-
-                    <QuestionGroup>
-                        <QuestionLabel>
-                            How easy was it to choose a movie in each round? <Required>*</Required>
-                        </QuestionLabel>
-                        <RadioGroup>
-                            {likertScale.map((option) => (
-                                <RadioOption key={`ease-${option.value}`}>
-                                    <input
-                                        type="radio"
-                                        name="easeOfUse"
-                                        value={option.value}
-                                        checked={answers.easeOfUse === option.value}
-                                        onChange={handleRadioChange("easeOfUse")}
-                                        disabled={formDisabled}
-                                    />
-                                    <span>{option.label}</span>
-                                </RadioOption>
-                            ))}
-                        </RadioGroup>
-                    </QuestionGroup>
-
-                    <QuestionGroup>
-                        <QuestionLabel>
-                            How clear was the information presented for each movie? <Required>*</Required>
-                        </QuestionLabel>
-                        <RadioGroup>
-                            {likertScale.map((option) => (
-                                <RadioOption key={`clarity-${option.value}`}>
-                                    <input
-                                        type="radio"
-                                        name="infoClarity"
-                                        value={option.value}
-                                        checked={answers.infoClarity === option.value}
-                                        onChange={handleRadioChange("infoClarity")}
-                                        disabled={formDisabled}
-                                    />
-                                    <span>{option.label}</span>
-                                </RadioOption>
-                            ))}
-                        </RadioGroup>
-                    </QuestionGroup>
-
-                    <QuestionGroup>
-                        <QuestionLabel>
-                            Which element influenced your decision the most? <Required>*</Required>
+                            Which descriptive feature influenced your decision the most? <Required>*</Required>
                         </QuestionLabel>
                         <RadioGroup>
                             {infoOptions.map((option) => (
@@ -463,12 +389,26 @@ function Questionnaire() {
                     </QuestionGroup>
 
                     <QuestionGroup>
-                        <QuestionLabel>Do you have any additional feedback?</QuestionLabel>
+                        <QuestionLabel>
+                            What made this feature most influential for you? <Required>*</Required>
+                        </QuestionLabel>
+                        <TextArea
+                            name="explanation"
+                            value={answers.explanation}
+                            onChange={handleTextChange}
+                            placeholder="Share the reasoning behind your choice."
+                            disabled={formDisabled}
+                            required
+                        />
+                    </QuestionGroup>
+
+                    <QuestionGroup>
+                        <QuestionLabel>Do you have any additional feedback about this experiment?</QuestionLabel>
                         <TextArea
                             name="additionalFeedback"
                             value={answers.additionalFeedback}
                             onChange={handleTextChange}
-                            placeholder="Share anything that stood out to you, or suggestions for improvement."
+                            placeholder="Optional: share anything else you would like us to know."
                             disabled={formDisabled}
                         />
                     </QuestionGroup>
@@ -481,13 +421,9 @@ function Questionnaire() {
                             </SuccessMessage>
                         ) : null}
                         <Actions>
-                            <SubmitButton type="submit" disabled={formDisabled}>
+                            <SubmitButton type="submit" disabled={submitDisabled}>
                                 {submitSuccess ? "Submitted" : isSubmitting ? "Saving..." : "Submit questionnaire"}
                             </SubmitButton>
-                            <SecondaryLink to="/">Back to start</SecondaryLink>
-                            <RestartButton type="button" onClick={handleRestart}>
-                                Restart experiment
-                            </RestartButton>
                         </Actions>
                     </SubmitRow>
                 </Form>

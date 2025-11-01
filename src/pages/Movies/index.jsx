@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useEffect, useMemo, useState, useId} from "react";
 import styled from "styled-components";
 import {Loader} from "../../utils/style/Atoms";
 import {useExperimentRounds} from "../../utils/hooks/useExperimentRounds";
@@ -17,22 +17,96 @@ const Page = styled.main`
 const Header = styled.header`
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
     margin-bottom: 2.5rem;
 `;
 
-const RoundTitle = styled.h1`
-    margin: 0;
-    font-size: clamp(1.8rem, 3vw, 2.6rem);
-    font-weight: 700;
+const ProgressBarContainer = styled.div`
+    position: relative;
+    width: 100%;
+    height: 0.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
 `;
 
-const RoundSummary = styled.p`
+const ProgressIndicator = styled.div`
+    position: absolute;
+    inset: 0;
+    width: ${({$progress}) => `${$progress}%`};
+    background: linear-gradient(90deg, #e50914 0%, #ff6a3d 100%);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+`;
+
+const RoundTitle = styled.h2`
     margin: 0;
-    color: #d0d0d0;
-    font-size: 0.95rem;
-    max-width: 760px;
-    line-height: 1.5rem;
+    font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+`;
+
+const HelpWrapper = styled.div`
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+`;
+
+const HelpButton = styled.button`
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+        background: rgba(229, 9, 20, 0.18);
+        border-color: rgba(229, 9, 20, 0.5);
+    }
+
+    &:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 3px;
+        background: rgba(229, 9, 20, 0.25);
+        border-color: rgba(229, 9, 20, 0.6);
+    }
+`;
+
+const HelpTooltip = styled.div`
+    position: absolute;
+    top: 120%;
+    right: 0;
+    width: clamp(220px, 28vw, 320px);
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    background: rgba(10, 10, 10, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+    color: #f0f0f0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 25;
+
+    ${HelpWrapper}:hover &,
+    ${HelpWrapper}:focus-within & {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
 `;
 
 const ControlButton = styled.button`
@@ -86,12 +160,7 @@ const FooterActions = styled.div`
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
-`;
-
-const FooterMessage = styled.span`
-    font-size: 0.9rem;
-    color: #d9d9d9;
-    letter-spacing: 0.04em;
+    margin-left: auto;
 `;
 
 const LoaderWrapper = styled.div`
@@ -100,43 +169,49 @@ const LoaderWrapper = styled.div`
     padding: 3rem 0;
 `;
 
-const SelectionNotice = styled.div`
-    margin: 1.5rem 0 0;
-    padding: 1rem 1.25rem;
-    border-radius: 12px;
-    background: rgba(229, 9, 20, 0.15);
-    border: 1px solid rgba(229, 9, 20, 0.35);
-    color: #ffeaea;
-    max-width: 520px;
-    font-size: 0.9rem;
-    line-height: 1.4rem;
-`;
-
 const FeedbackCard = styled.section`
-    margin-top: 1.5rem;
-    padding: 1.5rem 1.75rem;
-    border-radius: 16px;
-    background: rgba(18, 18, 18, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.08);
     display: grid;
-    gap: 1.2rem;
+    gap: 1.5rem;
+    width: 100%;
     max-width: 640px;
-`;
-
-const FeedbackTitle = styled.h2`
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 600;
+    margin: 2rem 0 0;
 `;
 
 const FeedbackGroup = styled.div`
     display: grid;
-    gap: 0.65rem;
+    gap: 0.9rem;
 `;
 
 const FeedbackLabel = styled.span`
-    font-size: 0.95rem;
+    font-size: 1.2rem;
     font-weight: 500;
+`;
+
+const LikertRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: nowrap;
+    font-size: 1rem;
+    color: #cfcfcf;
+`;
+
+const LikertLabel = styled.span`
+    white-space: nowrap;
+    font-size: 1rem;
+`;
+
+const LikertOption = styled.label`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 1rem;
+    color: #ffffff;
+
+    input {
+        accent-color: #e50914;
+        cursor: pointer;
+    }
 `;
 
 const Required = styled.span`
@@ -144,20 +219,23 @@ const Required = styled.span`
 `;
 
 const FeedbackOptions = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    width: max-content;
 `;
 
 const FeedbackOption = styled.label`
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.9rem;
-    border-radius: 999px;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 1.05rem;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.08);
     cursor: pointer;
     transition: background 0.2s ease, transform 0.2s ease;
+    width: 100%;
 
     &:hover {
         background: rgba(255, 255, 255, 0.12);
@@ -217,6 +295,12 @@ const roundLikertScale = [
     {value: "5", label: "5"}
 ];
 
+const familiarityOptions = [
+    {value: "never", label: "I did not know and have not seen the movie before"},
+    {value: "aware", label: "I knew the movie, but have not seen it before"},
+    {value: "seen", label: "I have seen the movie before"}
+];
+
 const ALL_INFO_OPTIONS = [
     {value: "title", label: "Title"},
     {value: "image", label: "Teaser image"},
@@ -256,6 +340,7 @@ function Movies() {
     const [roundFeedbackSaved, setRoundFeedbackSaved] = useState({});
     const [roundFeedbackError, setRoundFeedbackError] = useState(null);
     const [isFeedbackStep, setIsFeedbackStep] = useState(false);
+    const helpTooltipId = useId();
 
     const currentRound = rounds[roundIndex] ?? null;
 
@@ -296,16 +381,16 @@ function Movies() {
         setActiveMovieId(null);
         setRoundFeedbackError(null);
         setIsFeedbackStep(false);
+
+        if (typeof window !== "undefined") {
+            window.scrollTo({top: 0, left: 0, behavior: "auto"});
+        }
     }, [roundIndex]);
 
     const currentSelection = useMemo(
         () => selections.find((entry) => entry.round === roundIndex) ?? null,
         [selections, roundIndex]
     );
-
-    if (error) {
-        return <Page>Something went wrong while fetching the experiment data.</Page>;
-    }
 
     const handleSelection = (movie) => {
         if (!movie) {
@@ -332,6 +417,7 @@ function Movies() {
             [roundIndex]: prev[roundIndex] ?? {
                 confidence: "",
                 infoSatisfaction: "",
+                familiarity: "",
                 helpfulRanking: [],
                 notes: ""
             }
@@ -382,7 +468,7 @@ function Movies() {
 
         const {data: participantData, error: participantError} = await supabase
             .from("participants")
-            .insert([participantPayload])
+            .upsert([participantPayload], {onConflict: "pid"})
             .select()
             .single();
 
@@ -448,6 +534,7 @@ function Movies() {
         const payload = {
             confidence: Number(feedback.confidence),
             infoSatisfaction: Number(feedback.infoSatisfaction),
+            familiarity: feedback.familiarity ?? "",
             helpfulRanking: Array.isArray(feedback.helpfulRanking) ? feedback.helpfulRanking : [],
             notes: feedback.notes?.trim() || null,
             movieId: selection?.movieId ?? null,
@@ -477,6 +564,7 @@ function Movies() {
     const currentRoundFeedback = roundFeedback[roundIndex] ?? {
         confidence: "",
         infoSatisfaction: "",
+        familiarity: "",
         helpfulRanking: [],
         notes: ""
     };
@@ -484,9 +572,37 @@ function Movies() {
     const isCurrentFeedbackComplete =
         Boolean(currentRoundFeedback.confidence) &&
         Boolean(currentRoundFeedback.infoSatisfaction) &&
+        Boolean(currentRoundFeedback.familiarity) &&
         Array.isArray(currentRoundFeedback.helpfulRanking) &&
         currentRoundFeedback.helpfulRanking.length === availableInfoOptions.length &&
         Boolean(currentRoundFeedback.notes && currentRoundFeedback.notes.trim());
+
+    useEffect(() => {
+        if (!isFeedbackStep || availableInfoOptions.length === 0) {
+            return;
+        }
+        setRoundFeedback((prev) => {
+            const existing = prev[roundIndex] ?? {};
+            const currentRanking = Array.isArray(existing.helpfulRanking) ? existing.helpfulRanking : [];
+            if (currentRanking.length === availableInfoOptions.length) {
+                return prev;
+            }
+            return {
+                ...prev,
+                [roundIndex]: {
+                    confidence: existing.confidence ?? "",
+                    infoSatisfaction: existing.infoSatisfaction ?? "",
+                    familiarity: existing.familiarity ?? "",
+                    helpfulRanking: [...availableInfoOptions],
+                    notes: existing.notes ?? ""
+                }
+            };
+        });
+    }, [isFeedbackStep, availableInfoOptions, roundIndex]);
+
+    if (error) {
+        return <Page>Something went wrong while fetching the experiment data.</Page>;
+    }
 
     const handleFeedbackRadioChange = (field) => (event) => {
         const value = event.target.value;
@@ -496,6 +612,7 @@ function Movies() {
                 ...(prev[roundIndex] ?? {
                     confidence: "",
                     infoSatisfaction: "",
+                    familiarity: "",
                     helpfulRanking: [],
                     notes: ""
                 }),
@@ -517,6 +634,7 @@ function Movies() {
                 ...(prev[roundIndex] ?? {
                     confidence: "",
                     infoSatisfaction: "",
+                    familiarity: "",
                     helpfulRanking: [],
                     notes: ""
                 }),
@@ -532,7 +650,7 @@ function Movies() {
     const goToNext = async () => {
         if (!isFeedbackStep) {
             if (!currentSelection) {
-                setRoundFeedbackError("Select a movie with 'Watch now' before continuing.");
+                setRoundFeedbackError(null);
                 return;
             }
             setRoundFeedbackError(null);
@@ -578,38 +696,20 @@ function Movies() {
 
     const hasSelectionForCurrentRound = Boolean(currentSelection);
     const isFinalRound = rounds.length > 0 && roundIndex >= rounds.length - 1;
+    const totalRounds = rounds.length || 8;
+    const progressPercent = totalRounds > 0 ? ((roundIndex + (isFeedbackStep ? 1 : 0)) / totalRounds) * 100 : 0;
     const primaryLabel = isFeedbackStep
         ? isFinalRound
             ? "Go to questionnaire"
             : "Next round"
-        : "Continue to feedback";
-    const footerMessage = (() => {
-        if (isPersisting) {
-            return "Saving your selections...";
-        }
-        if (!hasSelectionForCurrentRound) {
-            return "Select a movie with the 'Watch now' button to continue.";
-        }
-        if (!isFeedbackStep) {
-            return `Selected: ${currentSelection.title}. Continue to the round feedback.`;
-        }
-        if (!isCurrentFeedbackComplete) {
-            return "Please complete the round feedback to continue.";
-        }
-        return isFinalRound
-            ? `Final round feedback complete for ${currentSelection.title}.`
-            : `Round feedback saved for ${currentSelection.title}.`;
-    })();
-
+        : "Continue to questions";
     return (
         <Page>
             <Header>
+                <ProgressBarContainer aria-hidden="true">
+                    <ProgressIndicator $progress={Math.min(progressPercent, 100)} />
+                </ProgressBarContainer>
                 <RoundTitle>Experiment round {roundIndex + 1} of {rounds.length || 8}</RoundTitle>
-                <RoundSummary>
-                    {isFeedbackStep
-                        ? "Answer the short questionnaire about this choice before continuing to the next round."
-                        : "Pick 1 movie per round. Only the 'Watch now' button confirms your selection. Every round contains unique movies (4 categories x 15 movies) and a different combination of variables."}
-                </RoundSummary>
             </Header>
 
             {isLoading || !currentRound ? (
@@ -624,32 +724,35 @@ function Movies() {
                     onSetActive={setActiveMovieId}
                     onConfirmSelection={handleSelection}
                     selectedMovieId={currentSelection?.movieId ?? null}
+                    renderHelp={() => (
+                        <HelpWrapper>
+                            <HelpButton type="button" aria-describedby={helpTooltipId} aria-label="Show task reminder">
+                                ?
+                            </HelpButton>
+                            <HelpTooltip id={helpTooltipId}>
+                                Hover over any movie tile to reveal extra information. Select the title you would like to watch with the
+                                'Watch now' button, then choose 'Continue to questions' to lock in your choice.
+                            </HelpTooltip>
+                        </HelpWrapper>
+                    )}
                 />
-            ) : null}
-
-            {currentSelection && !isFeedbackStep ? (
-                <SelectionNotice>
-                    You selected <strong>{currentSelection.title}</strong>. Click <strong>{primaryLabel}</strong> to
-                    continue.
-                </SelectionNotice>
             ) : null}
 
             {currentSelection && isFeedbackStep ? (
                 <FeedbackCard>
-                    <FeedbackTitle>Round feedback</FeedbackTitle>
                     <FeedbackGroup>
                         <FeedbackLabel>
-                            How confident are you about this choice? <Required>*</Required>
+                            Did you already know or have you seen this movie before? <Required>*</Required>
                         </FeedbackLabel>
                         <FeedbackOptions>
-                            {roundLikertScale.map((option) => (
-                                <FeedbackOption key={`confidence-${option.value}`}>
+                            {familiarityOptions.map((option) => (
+                                <FeedbackOption key={`familiarity-${option.value}`}>
                                     <input
                                         type="radio"
-                                        name={`confidence-${roundIndex}`}
+                                        name={`familiarity-${roundIndex}`}
                                         value={option.value}
-                                        checked={currentRoundFeedback.confidence === option.value}
-                                        onChange={handleFeedbackRadioChange("confidence")}
+                                        checked={currentRoundFeedback.familiarity === option.value}
+                                        onChange={handleFeedbackRadioChange("familiarity")}
                                         disabled={isPersisting}
                                     />
                                     <span>{option.label}</span>
@@ -659,23 +762,51 @@ function Movies() {
                     </FeedbackGroup>
                     <FeedbackGroup>
                         <FeedbackLabel>
+                            How confident are you about this choice? <Required>*</Required>
+                        </FeedbackLabel>
+                        <LikertRow>
+                            <LikertLabel>Not at all confident</LikertLabel>
+                            {roundLikertScale.map((option, index) => (
+                                <React.Fragment key={`confidence-${option.value}`}>
+                                    <LikertOption>
+                                        <input
+                                            type="radio"
+                                            name={`confidence-${roundIndex}`}
+                                            value={option.value}
+                                            checked={currentRoundFeedback.confidence === option.value}
+                                            onChange={handleFeedbackRadioChange("confidence")}
+                                            disabled={isPersisting}
+                                        />
+                                        <span>{option.label}</span>
+                                    </LikertOption>
+                                </React.Fragment>
+                            ))}
+                            <LikertLabel>Completely confident</LikertLabel>
+                        </LikertRow>
+                    </FeedbackGroup>
+                    <FeedbackGroup>
+                        <FeedbackLabel>
                             Was the information sufficient to decide? <Required>*</Required>
                         </FeedbackLabel>
-                        <FeedbackOptions>
-                            {roundLikertScale.map((option) => (
-                                <FeedbackOption key={`info-${option.value}`}>
-                                    <input
-                                        type="radio"
-                                        name={`info-${roundIndex}`}
-                                        value={option.value}
-                                        checked={currentRoundFeedback.infoSatisfaction === option.value}
-                                        onChange={handleFeedbackRadioChange("infoSatisfaction")}
-                                        disabled={isPersisting}
-                                    />
-                                    <span>{option.label}</span>
-                                </FeedbackOption>
+                        <LikertRow>
+                            <LikertLabel>Not at all sufficient</LikertLabel>
+                            {roundLikertScale.map((option, index) => (
+                                <React.Fragment key={`info-${option.value}`}>
+                                    <LikertOption>
+                                        <input
+                                            type="radio"
+                                            name={`info-${roundIndex}`}
+                                            value={option.value}
+                                            checked={currentRoundFeedback.infoSatisfaction === option.value}
+                                            onChange={handleFeedbackRadioChange("infoSatisfaction")}
+                                            disabled={isPersisting}
+                                        />
+                                        <span>{option.label}</span>
+                                    </LikertOption>
+                                </React.Fragment>
                             ))}
-                        </FeedbackOptions>
+                            <LikertLabel>Extremely sufficient</LikertLabel>
+                        </LikertRow>
                     </FeedbackGroup>
                     <FeedbackGroup>
                         <FeedbackLabel>
@@ -690,10 +821,30 @@ function Movies() {
                                 const handleDragStart = (e) => {
                                     e.dataTransfer.effectAllowed = "move";
                                     e.dataTransfer.setData("text/plain", String(idx));
+
+                                    const node = e.currentTarget;
+                                    const rect = node.getBoundingClientRect();
+                                    const dragClone = node.cloneNode(true);
+                                    dragClone.style.width = `${rect.width}px`;
+                                    dragClone.style.position = "absolute";
+                                    dragClone.style.top = "-9999px";
+                                    dragClone.style.left = "-9999px";
+                                    dragClone.style.pointerEvents = "none";
+                                    dragClone.style.opacity = "1";
+                                    dragClone.style.margin = "0";
+                                    document.body.appendChild(dragClone);
+                                    e.dataTransfer.setDragImage(dragClone, rect.width / 2, rect.height / 2);
+                                    window.setTimeout(() => {
+                                        dragClone.remove();
+                                    }, 0);
+                                    node.style.opacity = "0.5";
                                 };
                                 const handleDragOver = (e) => {
                                     e.preventDefault();
                                     e.dataTransfer.dropEffect = "move";
+                                };
+                                const handleDragEnd = (e) => {
+                                    e.currentTarget.style.opacity = "";
                                 };
                                 const handleDrop = (e) => {
                                     e.preventDefault();
@@ -706,12 +857,13 @@ function Movies() {
                                     setRoundFeedback((prev) => ({
                                         ...prev,
                                         [roundIndex]: {
-                                            ...(prev[roundIndex] ?? {
-                                                confidence: "",
-                                                infoSatisfaction: "",
-                                                helpfulRanking: [],
-                                                notes: ""
-                                            }),
+               ...(prev[roundIndex] ?? {
+                   confidence: "",
+                   infoSatisfaction: "",
+                    familiarity: "",
+                   helpfulRanking: [],
+                   notes: ""
+               }),
                                             helpfulRanking: next
                                         }
                                     }));
@@ -724,40 +876,45 @@ function Movies() {
                                         draggable={!isPersisting}
                                         onDragStart={handleDragStart}
                                         onDragOver={handleDragOver}
+                                        onDragEnd={handleDragEnd}
                                         onDrop={handleDrop}
                                         style={{
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: "0.6rem",
-                                            padding: "0.6rem 0.8rem",
-                                            borderRadius: 10,
-                                            background: "rgba(255,255,255,0.08)",
-                                            cursor: isPersisting ? "not-allowed" : "grab"
+                                            gap: "0.9rem",
+                                            cursor: isPersisting ? "not-allowed" : "grab",
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: 12,
+                                            background: "rgba(255,255,255,0.08)"
                                         }}
                                         aria-label={`Rank ${idx + 1}: ${option?.label ?? val}`}
                                     >
                                         <span style={{
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: 6,
-                                            background: "rgba(255,255,255,0.12)",
+                                            width: 26,
+                                            height: 26,
+                                            borderRadius: 8,
+                        background: "rgba(255,255,255,0.12)",
                                             display: "inline-flex",
                                             alignItems: "center",
                                             justifyContent: "center",
-                                            fontSize: 12
+                                            fontSize: 13,
+                                            flexShrink: 0
                                         }}>{idx + 1}</span>
-                                        <span>{option?.label ?? val}</span>
+                                        <span style={{
+                                            fontSize: "1.05rem",
+                                            color: "#ffffff"
+                                        }}>{option?.label ?? val}</span>
                                     </div>
                                 );
                             })}
                         </div>
                     </FeedbackGroup>
                     <FeedbackGroup>
-                        <FeedbackLabel>Notes about this choice <Required>*</Required></FeedbackLabel>
+                        <FeedbackLabel>Explain your choice briefly based on the descriptive features above <Required>*</Required></FeedbackLabel>
                         <FeedbackTextarea
                             value={currentRoundFeedback.notes}
                             onChange={handleFeedbackNotesChange}
-                            placeholder="Describe anything that helped or made the decision harder."
                             disabled={isPersisting}
                         />
                     </FeedbackGroup>
@@ -768,7 +925,6 @@ function Movies() {
             {persistError ? <PersistErrorNotice role="alert">{persistError}</PersistErrorNotice> : null}
 
             <FooterBar>
-                <FooterMessage>{footerMessage}</FooterMessage>
                 <FooterActions>
                     <ControlButton
                         primary

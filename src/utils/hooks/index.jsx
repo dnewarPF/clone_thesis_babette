@@ -1,5 +1,6 @@
-import  {useEffect, useState} from 'react'
+import  {useEffect, useMemo, useState} from 'react'
 import urls from "../urls";
+import {isFilteredByManualRules} from "../manualGenreFilterUtils";
 
 const MovieGenres = [{"id":28,"name":"Action"},{"id":12,"name":"Adventure"},{"id":16,"name":"Animation"},{"id":35,"name":"Comedy"},{"id":80,"name":"Crime"},{"id":99,"name":"Documentary"},{"id":18,"name":"Drama"},{"id":10751,"name":"Family"},{"id":14,"name":"Fantasy"},{"id":36,"name":"History"},{"id":27,"name":"Horror"},{"id":10402,"name":"Music"},{"id":9648,"name":"Mystery"},{"id":10749,"name":"Romance"},{"id":878,"name":"Science Fiction"},{"id":10770,"name":"TV Movie"},{"id":53,"name":"Thriller"},{"id":10752,"name":"War"},{"id":37,"name":"Western"}]
 const TvGenres = [{"id":10759,"name":"Action & Adventure"},{"id":16,"name":"Animation"},{"id":35,"name":"Comedy"},{"id":80,"name":"Crime"},{"id":99,"name":"Documentary"},{"id":18,"name":"Drama"},{"id":10751,"name":"Family"},{"id":10762,"name":"Kids"},{"id":9648,"name":"Mystery"},{"id":10763,"name":"News"},{"id":10764,"name":"Reality"},{"id":10765,"name":"Sci-Fi & Fantasy"},{"id":10766,"name":"Soap"},{"id":10767,"name":"Talk"},{"id":10768,"name":"War & Politics"},{"id":37,"name":"Western"}]
@@ -71,15 +72,43 @@ export function useFetchList(url,useRank = false) {
     const [data, setData] = useState([])
     const [isLoading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const requiredGenreIds = useMemo(() => {
+        if (typeof url !== "string") {
+            return [];
+        }
+        const match = url.match(/with_genres=([^&]+)/);
+        if (!match) {
+            return [];
+        }
+        return match[1]
+            .split(",")
+            .map((value) => Number(value.trim()))
+            .filter((value) => !Number.isNaN(value));
+    }, [url]);
     useEffect(() => {
         setLoading(true)
         fetch(url)
             .then((response) => response.json())
             .then((jsonResponse) => {
+                let results = Array.isArray(jsonResponse?.results) ? jsonResponse.results : [];
+                if (requiredGenreIds.length > 0) {
+                    results = results.filter((item) => {
+                        if (!Array.isArray(item?.genre_ids)) {
+                            return false;
+                        }
+                        return requiredGenreIds.every((genreId) => item.genre_ids.includes(genreId));
+                    });
+                }
+                results = results.filter((item) =>
+                    !isFilteredByManualRules(item, {
+                        requiredGenreIds
+                    })
+                );
+
                 if(useRank){
-                    setData(jsonResponse?.results.slice(0,9));
+                    setData(results.slice(0,9));
                 }else{
-                    setData(jsonResponse?.results
+                    setData(results
                         .map((item) => ({ sort: Math.random(), value: item }))
                         .sort((a, b) => a.sort - b.sort)
                         .map((item) => item.value)
@@ -95,7 +124,7 @@ export function useFetchList(url,useRank = false) {
                     setLoading(false)
                 }
             )
-    }, [url,useRank])
+    }, [url,useRank,requiredGenreIds])
     return {isLoading, data,error}
 }
 
@@ -140,7 +169,7 @@ export function useTransitionControl(duration){
         }
     };
     const exited = ()=>{
-        setState(STATE.EXITED);
+        setState(STATE.FINISH);
     };
 
     return [state,enter,exited]

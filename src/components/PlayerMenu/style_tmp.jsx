@@ -3,33 +3,33 @@ import PropTypes from "prop-types";
 import styled from "styled-components";
 
 const PlayerContainer = styled.div`
-    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    background: #141414;
-    padding: 0.55em 0.85em 2.65em;
+    gap: 0.6em;
+    background: rgba(15, 15, 15, 0.85);
+    padding: 0.65em 0.85em 0.7em;
     border-radius: 0 0 18px 18px;
+    backdrop-filter: blur(6px);
     font-size: calc(1rem / var(--tile-scale, 1));
-    height: 100%;
 `;
 
 const InfoColumn = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 0.35em;
+    gap: 0.45em;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
 `;
 
 const ActionsColumn = styled.div`
-    position: absolute;
-    bottom: 0.85em;
-    right: 0.85em;
+    margin-top: auto;
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 0.6em;
+    width: 100%;
 `;
 
 const TitleRow = styled.div`
@@ -37,13 +37,12 @@ const TitleRow = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 0.75em;
-    min-height: 1.6em;
 `;
 
 const Title = styled.h3`
     margin: 0;
-    font-size: ${({isLargeRow}) => (isLargeRow ? "1.28em" : "1.18em")};
-    font-weight: 700;
+    font-size: ${({isLargeRow}) => (isLargeRow ? "1.08em" : "1em")};
+    font-weight: 600;
 `;
 
 const KeywordsLine = styled.div`
@@ -69,30 +68,30 @@ const MetaRow = styled.div`
     pointer-events: none;
 `;
 
-const RatingValue = styled.span`
-    font-weight: 700;
-    color: #ffffff;
+const Rating = styled.span`
+    color: #8ef28c;
+    font-weight: 600;
 `;
 
 // removed per-card Genres display per requirements
 
 const RatingLine = styled.div`
-    margin-top: 0.1em;
+    margin-top: 0.35em;
     font-size: 0.9em;
-    color: #d9d9d9;
+    color: #d9ffd7;
 `;
 
 const ConfirmButton = styled.button`
-    align-self: flex-end;
+    align-self: auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: #050505;
     font-weight: 700;
-    font-size: 1.02em;
+    font-size: 0.95em;
     border-radius: 999px;
-    padding: 0.5em 1.6em;
+    padding: 0.5em 1.45em;
     border: none;
     background: #e50914;
     text-transform: uppercase;
@@ -119,6 +118,23 @@ const ConfirmButton = styled.button`
         cursor: default;
         transform: none;
     }
+`;
+
+const SelectedNotice = styled.span`
+    align-self: flex-end;
+    font-size: 0.8em;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #ffd6d6;
+    background: rgba(229, 9, 20, 0.2);
+    border: 1px solid rgba(229, 9, 20, 0.5);
+    border-radius: 999px;
+    padding: 0.3em 0.95em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: right;
+    margin-bottom: 0;
 `;
 
 function PlayerMenu({
@@ -159,7 +175,7 @@ function PlayerMenu({
                 ) : null}
                 {detailsVisible && showRatings ? (
                     <RatingLine>
-                        Rating: <RatingValue>{rating10} / 10</RatingValue>
+                        Rating: <Rating>{rating10}</Rating>
                     </RatingLine>
                 ) : null}
                 <MetaRow $visible={detailsVisible}>
@@ -167,13 +183,13 @@ function PlayerMenu({
                 </MetaRow>
             </InfoColumn>
             <ActionsColumn>
-                <ConfirmButton
-                    type="button"
-                    onClick={() => onConfirm?.()}
-                    $visible={detailsVisible}
-                >
-                    Watch now
-                </ConfirmButton>
+                {isSelected ? (
+                    <SelectedNotice>Selection made - use the button below to continue</SelectedNotice>
+                ) : (
+                    <ConfirmButton type="button" onClick={() => onConfirm?.()} $visible={detailsVisible}>
+                        Watch now
+                    </ConfirmButton>
+                )}
             </ActionsColumn>
         </PlayerContainer>
     );

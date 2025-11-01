@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import {useNavigate} from "react-router-dom";
+import {useExperimentPreload} from "../../utils/hooks/useExperimentPreload";
 
 const Page = styled.main`
     min-height: 100vh;
@@ -31,7 +32,15 @@ const Subtitle = styled.p`
     font-size: clamp(1.1rem, 2vw, 1.4rem);
     line-height: 1.7;
     color: #d9d9d9;
-    max-width: 64ch;
+    max-width: 80ch;
+`;
+
+const ImportantNotice = styled.p`
+    margin: 0;
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    line-height: 1.6;
+    color: #ffffff;
+    font-weight: 600;
 `;
 
 const CTA = styled.button`
@@ -59,31 +68,25 @@ const CTA = styled.button`
     }
 `;
 
-const Meta = styled.div`
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    font-size: 0.95rem;
-    color: #9f9f9f;
-`;
-
 function Home() {
     const navigate = useNavigate();
+    useExperimentPreload();
 
     return (
         <Page>
             <Hero>
-                <Title>Welcome to the Film Choices Study</Title>
+                <Title>Welcome to Moviemind!</Title>
                 <Subtitle>
-                    We examine how people choose movies when the available information changes. You will complete eight
-                    rounds, each showing a different combination of variables. Take your time; we record how long you
-                    need to pick a movie.
+                    Thank you for considering participating in my thesis experiment.
+                    This study investigates how people make decisions in digital environments. The goal of this study is
+                    to better understand the factors that influence user choices. More details about the specific purpose
+                    will be provided after participation.
                 </Subtitle>
-                <Meta>
-                    <span>Duration: approx. 15-20 minutes</span>
-                    <span>Setting: quiet space, audio optional</span>
-                </Meta>
-                <CTA onClick={() => navigate("/consent")}>Continue to consent</CTA>
+                <ImportantNotice>
+                    IMPORTANT: In order to participate in this study, you will need a laptop or desktop (i.e. no phones
+                    or tablets) and around 10 to 15 minutes to finish the experiment.
+                </ImportantNotice>
+                <CTA onClick={() => navigate("/consent")}>Continue</CTA>
             </Hero>
         </Page>
     );

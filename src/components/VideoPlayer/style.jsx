@@ -5,28 +5,47 @@ export const Card = styled.div`
     flex-direction: column;
     background: #141414;
     border-radius: 18px;
-    overflow: hidden;
-    box-shadow: ${({$hovered}) => ($hovered ? "0 24px 48px rgba(0, 0, 0, 0.6)" : "0 14px 32px rgba(0, 0, 0, 0.32)")};
+    overflow: visible;
+    --tile-scale: ${({$hovered, $previewEnabled}) => {
+        if (!$hovered) {
+            return 1;
+        }
+        return $previewEnabled ? 1.6 : 1.45;
+    }};
+    box-shadow: ${({$hovered, $previewEnabled}) =>
+        $hovered
+            ? $previewEnabled
+                ? "0 36px 64px rgba(0, 0, 0, 0.65)"
+                : "0 24px 48px rgba(0, 0, 0, 0.6)"
+            : "0 14px 32px rgba(0, 0, 0, 0.32)"};
     transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
     border: ${({isSelected}) => (isSelected ? "2px solid rgba(229, 9, 20, 0.6)" : "2px solid transparent")};
-    transform: ${({$hovered}) => ($hovered ? "scale(1.12)" : "scale(1)")};
+    transform: ${({$hovered, $hoverShift}) =>
+        `translateX(${ $hovered ? $hoverShift : 0 }px) translateY(calc((1 - var(--tile-scale)) * 50%)) scale(var(--tile-scale))`};
     transform-origin: center;
     position: relative;
     z-index: ${({$hovered}) => ($hovered ? 20 : 1)};
-    will-change: transform;
+    will-change: transform, box-shadow;
 
     @media only screen and (max-width: 768px) {
         min-height: auto;
-        transform: ${({$hovered}) => ($hovered ? "scale(1.05)" : "scale(1)")};
+        --tile-scale: ${({$hovered, $previewEnabled}) => {
+            if (!$hovered) {
+                return 1;
+            }
+            return $previewEnabled ? 1.45 : 1.3;
+        }};
     }
 `;
 
 export const MediaSurface = styled.div`
     position: relative;
+    flex: 0 0 auto;
     width: 100%;
     aspect-ratio: 18 / 9;
     background: #000;
     overflow: hidden;
+    border-radius: 18px 18px 0 0;
 `;
 
 export const LoaderParentContainer = styled.div`
@@ -66,7 +85,7 @@ export const StyledImage = styled.img`
 export const SelectionOverlay = styled.div`
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(20, 20, 20, 0.8) 0%, rgba(10, 10, 10, 0.92) 100%);
+    background: linear-gradient(180deg, rgba(229, 9, 20, 0.35) 0%, rgba(229, 9, 20, 0.55) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -91,34 +110,36 @@ export const VideoContainer = styled.div`
         width: 100%;
         height: 100%;
         border: none;
+        pointer-events: none;
     }
 `;
 
 export const VideoActions = styled.div`
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 18px;
     display: flex;
-    gap: 12px;
+    gap: 6px;
     z-index: 4;
 `;
 
 export const SoundContainer = styled.button`
-    width: 44px;
-    height: 44px;
+    width: 26px;
+    height: 26px;
     border-radius: 999px;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.65);
     cursor: pointer;
     color: #ffffff;
+    font-size: 0.82rem;
     transition: background 0.2s ease, transform 0.2s ease;
 
     &:hover {
-        background: rgba(0, 0, 0, 0.85);
-        transform: scale(1.05);
+        background: rgba(0, 0, 0, 0.9);
+        transform: scale(1.08);
     }
 
     &:focus-visible {

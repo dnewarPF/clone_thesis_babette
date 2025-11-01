@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import {BrowserRouter as Router} from 'react-router-dom'
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 import {Route, Routes} from "react-router";
 import Movie from "./pages/Movie";
 import Home from "./pages/Home";
@@ -17,6 +18,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>
     <Router>
+        <ScrollToTop />
         <Routes>
             <Route exact path="/" element={<Home/>}>
             </Route>
