@@ -387,6 +387,15 @@ function Movies() {
         }
     }, [roundIndex]);
 
+    useEffect(() => {
+        if (!isFeedbackStep) {
+            return;
+        }
+        if (typeof window !== "undefined") {
+            window.scrollTo({top: 0, left: 0, behavior: "auto"});
+        }
+    }, [isFeedbackStep]);
+
     const currentSelection = useMemo(
         () => selections.find((entry) => entry.round === roundIndex) ?? null,
         [selections, roundIndex]
@@ -654,6 +663,9 @@ function Movies() {
                 return;
             }
             setRoundFeedbackError(null);
+            if (typeof window !== "undefined") {
+                window.scrollTo({top: 0, left: 0, behavior: "auto"});
+            }
             setIsFeedbackStep(true);
             return;
         }
@@ -674,6 +686,9 @@ function Movies() {
                 await persistChoices(session.id, selections);
                 setPersistError(null);
                 setIsPersisting(false);
+                if (typeof window !== "undefined") {
+                    window.scrollTo({top: 0, left: 0, behavior: "auto"});
+                }
                 navigate("/questionnaire", {
                     state: {
                         selections,
