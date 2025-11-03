@@ -896,7 +896,8 @@ function Movies() {
                                             e.dataTransfer.effectAllowed = "move";
                                             e.dataTransfer.setData("text/plain", String(idx));
                                             setDraggingIndex(idx);
-                                            const node = e.currentTarget;
+                                            const isHandle = e.currentTarget && e.currentTarget.getAttribute && e.currentTarget.getAttribute('data-handle') === 'true';
+                                            const node = isHandle && e.currentTarget.parentNode ? e.currentTarget.parentNode : e.currentTarget;
                                             const rect = node.getBoundingClientRect();
                                             const dragClone = node.cloneNode(true);
                                             dragClone.style.width = `${rect.width}px`;
@@ -962,7 +963,9 @@ function Movies() {
                                             transition: "background 120ms ease"
                                         };
                                         const tileStyle = {
-                                            cursor: isPersisting ? "not-allowed" : (draggingIndex === idx ? "grabbing" : "grab"),
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "flex-start",
                                             fontSize: "1.05rem",
                                             color: "#ffffff",
                                             userSelect: "none",
@@ -972,7 +975,21 @@ function Movies() {
                                             boxShadow: draggingIndex === idx ? "0 8px 20px rgba(0,0,0,0.45)" : "none",
                                             opacity: draggingIndex === idx ? 0.7 : 1,
                                             transform: draggingIndex === idx ? "scale(0.98)" : "none",
-                                            transition: "transform 120ms ease, opacity 120ms ease, box-shadow 120ms ease"
+                                            transition: "transform 120ms ease, opacity 120ms ease, box-shadow 120ms ease",
+                                            cursor: isPersisting ? "not-allowed" : (draggingIndex === idx ? "grabbing" : "grab"),
+                                            flex: 1
+                                        };
+                                        const handleStyle = {
+                                            marginLeft: 'auto',
+                                            padding: "0.15rem 0.35rem",
+                                            borderRadius: 6,
+                                            color: "#ffffff",
+                                            background: "rgba(255,255,255,0.12)",
+                                            cursor: isPersisting ? "not-allowed" : (draggingIndex === idx ? "grabbing" : "grab"),
+                                            lineHeight: 1,
+                                            fontSize: 16,
+                                            opacity: isPersisting ? 0.6 : 1,
+                                            transition: "background 120ms ease, opacity 120ms ease"
                                         };
 
                                         return (
@@ -989,14 +1006,16 @@ function Movies() {
                                             >
                                                 <span style={bubbleStyle}>{idx + 1}</span>
                                                 <div
+                                                    data-tile
                                                     draggable={!isPersisting}
                                                     onDragStart={onTileDragStart}
                                                     onDragEnd={onTileDragEnd}
                                                     style={tileStyle}
                                                     aria-label={`Rank ${idx + 1}: ${option?.label ?? val}`}
                                                     aria-grabbed={draggingIndex === idx}
+                                                    title="Drag to reorder"
                                                 >
-                                                    {option?.label ?? val}
+                                                    <span>{option?.label ?? val}</span>
                                                     {isOver ? (
                                                         <span style={{
                                                             marginLeft: 10,
@@ -1006,6 +1025,21 @@ function Movies() {
                                                             Drop here to set as rank {idx + 1}
                                                         </span>
                                                     ) : null}
+                                                    <span
+                                                        role="button"
+                                                        title="Drag to reorder"
+                                                        aria-label={`Drag handle for rank ${idx + 1}: ${option?.label ?? val}`}
+                                                        data-handle
+                                                        draggable={!isPersisting}
+                                                        onDragStart={(e) => {
+                                                            onTileDragStart(e);
+                                                        }}
+                                                        onDragEnd={onTileDragEnd}
+                                                        style={handleStyle}
+                                                        aria-grabbed={draggingIndex === idx}
+                                                    >
+                                                        ☰
+                                                    </span>
                                                 </div>
                                             </div>
                                         );
