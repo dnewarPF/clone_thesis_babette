@@ -34,7 +34,7 @@ const ProgressIndicator = styled.div`
     position: absolute;
     inset: 0;
     width: ${({$progress}) => `${$progress}%`};
-    background: linear-gradient(90deg, #e50914 0%, #ff6a3d 100%);
+    background: linear-gradient(90deg, #e50914 0%, #f6121d 100%);
     border-radius: 999px;
     transition: width 0.3s ease;
 `;
@@ -173,8 +173,18 @@ const FeedbackCard = styled.section`
     display: grid;
     gap: 1.5rem;
     width: 100%;
-    max-width: 640px;
+    /* Use the full available content width so long labels don't wrap early */
+    max-width: none;
     margin: 2rem 0 0;
+`;
+
+// Constrain specific content blocks (tiles list and textarea) to half width
+const HalfWidthBlock = styled.div`
+    width: 100%;
+    max-width: 50%;
+    @media (max-width: 900px) {
+        max-width: 100%;
+    }
 `;
 
 const FeedbackGroup = styled.div`
@@ -185,6 +195,11 @@ const FeedbackGroup = styled.div`
 const FeedbackLabel = styled.span`
     font-size: 1.2rem;
     font-weight: 500;
+`;
+
+const FeedbackHighlight = styled.span`
+    color: #e50914;
+    font-weight: 600;
 `;
 
 const LikertRow = styled.div`
@@ -340,6 +355,9 @@ function Movies() {
     const [roundFeedbackSaved, setRoundFeedbackSaved] = useState({});
     const [roundFeedbackError, setRoundFeedbackError] = useState(null);
     const [isFeedbackStep, setIsFeedbackStep] = useState(false);
+    // Drag-and-drop visual state for ranking UI
+    const [draggingIndex, setDraggingIndex] = useState(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
     const helpTooltipId = useId();
 
     const currentRound = rounds[roundIndex] ?? null;
@@ -395,6 +413,12 @@ function Movies() {
             window.scrollTo({top: 0, left: 0, behavior: "auto"});
         }
     }, [isFeedbackStep]);
+
+    // Reset drag state between rounds/steps
+    useEffect(() => {
+        setDraggingIndex(null);
+        setDragOverIndex(null);
+    }, [roundIndex, isFeedbackStep]);
 
     const currentSelection = useMemo(
         () => selections.find((entry) => entry.round === roundIndex) ?? null,
@@ -825,113 +849,182 @@ function Movies() {
                     </FeedbackGroup>
                     <FeedbackGroup>
                         <FeedbackLabel>
-                            Rank the descriptive features by importance (drag to reorder). <Required>*</Required>
+                            Rank the <FeedbackHighlight>descriptive features</FeedbackHighlight> by importance (drag to reorder). <Required>*</Required>
                         </FeedbackLabel>
-                        <div style={{display: "grid", gap: "0.5rem"}}>
-                            {(Array.isArray(currentRoundFeedback.helpfulRanking) && currentRoundFeedback.helpfulRanking.length === availableInfoOptions.length
+                        {(() => {
+                            const displayOrder = (Array.isArray(currentRoundFeedback.helpfulRanking) &&
+                                currentRoundFeedback.helpfulRanking.length === availableInfoOptions.length)
                                 ? currentRoundFeedback.helpfulRanking
-                                : availableInfoOptions
-                            ).map((val, idx, arr) => {
-                                const option = ALL_INFO_OPTIONS.find((o) => o.value === val);
-                                const handleDragStart = (e) => {
-                                    e.dataTransfer.effectAllowed = "move";
-                                    e.dataTransfer.setData("text/plain", String(idx));
+                                : availableInfoOptions;
 
-                                    const node = e.currentTarget;
-                                    const rect = node.getBoundingClientRect();
-                                    const dragClone = node.cloneNode(true);
-                                    dragClone.style.width = `${rect.width}px`;
-                                    dragClone.style.position = "absolute";
-                                    dragClone.style.top = "-9999px";
-                                    dragClone.style.left = "-9999px";
-                                    dragClone.style.pointerEvents = "none";
-                                    dragClone.style.opacity = "1";
-                                    dragClone.style.margin = "0";
-                                    document.body.appendChild(dragClone);
-                                    e.dataTransfer.setDragImage(dragClone, rect.width / 2, rect.height / 2);
-                                    window.setTimeout(() => {
-                                        dragClone.remove();
-                                    }, 0);
-                                    node.style.opacity = "0.5";
-                                };
-                                const handleDragOver = (e) => {
-                                    e.preventDefault();
-                                    e.dataTransfer.dropEffect = "move";
-                                };
-                                const handleDragEnd = (e) => {
-                                    e.currentTarget.style.opacity = "";
-                                };
-                                const handleDrop = (e) => {
-                                    e.preventDefault();
-                                    const fromIndex = Number(e.dataTransfer.getData("text/plain"));
-                                    const toIndex = idx;
-                                    if (Number.isNaN(fromIndex) || fromIndex === toIndex) return;
-                                    const next = [...arr];
+                            const handleDropToIndex = (toIndex, fromIndex) => {
+                                if (Number.isNaN(fromIndex) || fromIndex === toIndex) return;
+                                setRoundFeedback((prev) => {
+                                    const existing = prev[roundIndex] ?? {
+                                        confidence: "",
+                                        infoSatisfaction: "",
+                                        familiarity: "",
+                                        helpfulRanking: [],
+                                        notes: ""
+                                    };
+                                    const base = (Array.isArray(existing.helpfulRanking) && existing.helpfulRanking.length === availableInfoOptions.length)
+                                        ? existing.helpfulRanking
+                                        : availableInfoOptions;
+                                    const next = [...base];
                                     const [moved] = next.splice(fromIndex, 1);
                                     next.splice(toIndex, 0, moved);
-                                    setRoundFeedback((prev) => ({
+                                    return {
                                         ...prev,
                                         [roundIndex]: {
-               ...(prev[roundIndex] ?? {
-                   confidence: "",
-                   infoSatisfaction: "",
-                    familiarity: "",
-                   helpfulRanking: [],
-                   notes: ""
-               }),
+                                            ...existing,
                                             helpfulRanking: next
                                         }
-                                    }));
-                                    setRoundFeedbackSaved((prev) => ({...prev, [roundIndex]: false}));
-                                    setRoundFeedbackError(null);
-                                };
-                                return (
-                                    <div
-                                        key={`rank-${val}`}
-                                        draggable={!isPersisting}
-                                        onDragStart={handleDragStart}
-                                        onDragOver={handleDragOver}
-                                        onDragEnd={handleDragEnd}
-                                        onDrop={handleDrop}
-                                        style={{
+                                    };
+                                });
+                                setRoundFeedbackSaved((prev) => ({...prev, [roundIndex]: false}));
+                                setRoundFeedbackError(null);
+                                setDraggingIndex(null);
+                                setDragOverIndex(null);
+                            };
+
+                            return (
+                                <HalfWidthBlock role="list" style={{display: "grid", gap: "0.5rem"}}>
+                                    {displayOrder.map((val, idx) => {
+                                        const option = ALL_INFO_OPTIONS.find((o) => o.value === val);
+
+                                        const onTileDragStart = (e) => {
+                                            e.dataTransfer.effectAllowed = "move";
+                                            e.dataTransfer.setData("text/plain", String(idx));
+                                            setDraggingIndex(idx);
+                                            const node = e.currentTarget;
+                                            const rect = node.getBoundingClientRect();
+                                            const dragClone = node.cloneNode(true);
+                                            dragClone.style.width = `${rect.width}px`;
+                                            dragClone.style.position = "absolute";
+                                            dragClone.style.top = "-9999px";
+                                            dragClone.style.left = "-9999px";
+                                            dragClone.style.pointerEvents = "none";
+                                            dragClone.style.opacity = "1";
+                                            dragClone.style.margin = "0";
+                                            document.body.appendChild(dragClone);
+                                            e.dataTransfer.setDragImage(dragClone, rect.width / 2, rect.height / 2);
+                                            window.setTimeout(() => dragClone.remove(), 0);
+                                        };
+                                        const onTileDragEnd = () => {
+                                            setDraggingIndex(null);
+                                            setDragOverIndex(null);
+                                        };
+
+                                        const onSlotDragOver = (e) => {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = "move";
+                                            setDragOverIndex(idx);
+                                        };
+                                        const onSlotDragEnter = () => setDragOverIndex(idx);
+                                        const onSlotDragLeave = (e) => {
+                                            // Only clear when leaving the slot itself
+                                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                                                setDragOverIndex((prev) => (prev === idx ? null : prev));
+                                            }
+                                        };
+
+                                        const onSlotDrop = (e) => {
+                                            e.preventDefault();
+                                            const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+                                            handleDropToIndex(idx, fromIndex);
+                                        };
+
+                                        const isOver = dragOverIndex === idx;
+                                        const slotStyle = {
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "0.9rem",
-                                            cursor: isPersisting ? "not-allowed" : "grab",
                                             width: "100%",
                                             padding: "0.7rem 1rem",
                                             borderRadius: 12,
-                                            background: "rgba(255,255,255,0.08)"
-                                        }}
-                                        aria-label={`Rank ${idx + 1}: ${option?.label ?? val}`}
-                                    >
-                                        <span style={{
+                                            background: isOver ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.08)",
+                                            border: isOver ? "1px dashed #e50914" : "1px solid rgba(255,255,255,0.08)",
+                                            boxShadow: isOver ? "0 0 0 3px rgba(229,9,20,0.25)" : "none",
+                                            transform: isOver ? "scale(1.01)" : "none",
+                                            transition: "background 120ms ease, box-shadow 120ms ease, transform 120ms ease, border-color 120ms ease"
+                                        };
+                                        const bubbleStyle = {
                                             width: 26,
                                             height: 26,
                                             borderRadius: 8,
-                        background: "rgba(255,255,255,0.12)",
+                                            background: isOver ? "rgba(229,9,20,0.28)" : "rgba(255,255,255,0.12)",
                                             display: "inline-flex",
                                             alignItems: "center",
                                             justifyContent: "center",
                                             fontSize: 13,
-                                            flexShrink: 0
-                                        }}>{idx + 1}</span>
-                                        <span style={{
+                                            color: "#ffffff",
+                                            flexShrink: 0,
+                                            transition: "background 120ms ease"
+                                        };
+                                        const tileStyle = {
+                                            cursor: isPersisting ? "not-allowed" : (draggingIndex === idx ? "grabbing" : "grab"),
                                             fontSize: "1.05rem",
-                                            color: "#ffffff"
-                                        }}>{option?.label ?? val}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                            color: "#ffffff",
+                                            userSelect: "none",
+                                            padding: "0.35rem 0.6rem",
+                                            borderRadius: 8,
+                                            background: "rgba(255,255,255,0.10)",
+                                            boxShadow: draggingIndex === idx ? "0 8px 20px rgba(0,0,0,0.45)" : "none",
+                                            opacity: draggingIndex === idx ? 0.7 : 1,
+                                            transform: draggingIndex === idx ? "scale(0.98)" : "none",
+                                            transition: "transform 120ms ease, opacity 120ms ease, box-shadow 120ms ease"
+                                        };
+
+                                        return (
+                                            <div
+                                                key={`rank-slot-${val}`}
+                                                role="listitem"
+                                                onDragOver={onSlotDragOver}
+                                                onDragEnter={onSlotDragEnter}
+                                                onDragLeave={onSlotDragLeave}
+                                                onDrop={onSlotDrop}
+                                                style={slotStyle}
+                                                aria-label={`Rank slot ${idx + 1}`}
+                                                aria-dropeffect="move"
+                                            >
+                                                <span style={bubbleStyle}>{idx + 1}</span>
+                                                <div
+                                                    draggable={!isPersisting}
+                                                    onDragStart={onTileDragStart}
+                                                    onDragEnd={onTileDragEnd}
+                                                    style={tileStyle}
+                                                    aria-label={`Rank ${idx + 1}: ${option?.label ?? val}`}
+                                                    aria-grabbed={draggingIndex === idx}
+                                                >
+                                                    {option?.label ?? val}
+                                                    {isOver ? (
+                                                        <span style={{
+                                                            marginLeft: 10,
+                                                            fontSize: 12,
+                                                            color: "#ffb3b3"
+                                                        }}>
+                                                            Drop here to set as rank {idx + 1}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </HalfWidthBlock>
+                            );
+                        })()}
                     </FeedbackGroup>
                     <FeedbackGroup>
-                        <FeedbackLabel>Explain your choice briefly based on the descriptive features above <Required>*</Required></FeedbackLabel>
-                        <FeedbackTextarea
-                            value={currentRoundFeedback.notes}
-                            onChange={handleFeedbackNotesChange}
-                            disabled={isPersisting}
-                        />
+                        <FeedbackLabel>
+                            Briefly explain your choice based on how you ranked the <FeedbackHighlight>descriptive features</FeedbackHighlight> above. <Required>*</Required>
+                        </FeedbackLabel>
+                        <HalfWidthBlock>
+                            <FeedbackTextarea
+                                value={currentRoundFeedback.notes}
+                                onChange={handleFeedbackNotesChange}
+                                disabled={isPersisting}
+                            />
+                        </HalfWidthBlock>
                     </FeedbackGroup>
                 </FeedbackCard>
             ) : null}

@@ -390,7 +390,7 @@ function Questionnaire() {
 
                     <QuestionGroup>
                         <QuestionLabel>
-                            What made this feature most influential for you? <Required>*</Required>
+                            What made this <strong>descriptive feature</strong> most influential for you? <Required>*</Required>
                         </QuestionLabel>
                         <TextArea
                             name="explanation"
@@ -403,7 +403,9 @@ function Questionnaire() {
                     </QuestionGroup>
 
                     <QuestionGroup>
-                        <QuestionLabel>Do you have any additional feedback about this experiment?</QuestionLabel>
+                        <QuestionLabel>
+                            Do you have any additional feedback about the <strong>descriptive features</strong> shown in this experiment?
+                        </QuestionLabel>
                         <TextArea
                             name="additionalFeedback"
                             value={answers.additionalFeedback}
