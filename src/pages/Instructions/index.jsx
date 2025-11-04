@@ -149,7 +149,10 @@ function Instructions() {
                         <li>
                             You will be presented with <Highlight>four genres</Highlight>, each containing a list of movies.
                         </li>
-                        <li><Highlight>Browse</Highlight> through the available options as you normally would on a streaming platform.</li>
+                        <li>
+                            <Highlight>Explore</Highlight> the platform and possible movies as you normally would, and preferably pick a movie you
+                            <Highlight> have not seen before</Highlight>.
+                        </li>
                         <li>When you <Highlight>hover</Highlight> over a movie tile, more information will be shown.</li>
                         <li>
                             When you find a movie you would like to watch, click <Highlight>&ldquo;Watch now&rdquo;</Highlight>.

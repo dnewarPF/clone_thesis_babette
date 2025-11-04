@@ -186,6 +186,11 @@ const Required = styled.span`
     color: #e50914;
 `;
 
+const Highlight = styled.span`
+    color: #e50914;
+    font-weight: 650;
+`;
+
 const infoOptions = [
     {value: "title", label: "Title"},
     {value: "image", label: "Teaser image"},
@@ -390,7 +395,7 @@ function Questionnaire() {
 
                     <QuestionGroup>
                         <QuestionLabel>
-                            What made this <strong>descriptive feature</strong> most influential for you? <Required>*</Required>
+                            What made this <Highlight>descriptive feature</Highlight> most influential for you? <Required>*</Required>
                         </QuestionLabel>
                         <TextArea
                             name="explanation"
@@ -404,7 +409,7 @@ function Questionnaire() {
 
                     <QuestionGroup>
                         <QuestionLabel>
-                            Do you have any additional feedback about the <strong>descriptive features</strong> shown in this experiment?
+                            Do you have any additional questions or remarks about the experiment in general?
                         </QuestionLabel>
                         <TextArea
                             name="additionalFeedback"
